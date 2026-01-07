@@ -33,11 +33,9 @@ const RAW_RUNTIME_STATE =
           ["@tauri-apps/plugin-dialog", "npm:2.4.2"],\
           ["@tauri-apps/plugin-fs", "npm:2.4.4"],\
           ["@tauri-apps/plugin-opener", "npm:2.5.2"],\
-          ["@types/animejs", "npm:3.1.13"],\
           ["@types/react", "npm:19.2.7"],\
           ["@types/react-dom", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:19.2.3"],\
           ["@vitejs/plugin-react", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:4.7.0"],\
-          ["animejs", "npm:3.2.2"],\
           ["autoprefixer", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:10.4.23"],\
           ["clsx", "npm:2.1.1"],\
           ["html2canvas", "npm:1.4.1"],\
@@ -1204,15 +1202,6 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
-    ["@types/animejs", [\
-      ["npm:3.1.13", {\
-        "packageLocation": "../../../.yarn/berry/cache/@types-animejs-npm-3.1.13-441599515b-10c0.zip/node_modules/@types/animejs/",\
-        "packageDependencies": [\
-          ["@types/animejs", "npm:3.1.13"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
     ["@types/babel__core", [\
       ["npm:7.20.5", {\
         "packageLocation": "../../../.yarn/berry/cache/@types-babel__core-npm-7.20.5-4d95f75eab-10c0.zip/node_modules/@types/babel__core/",\
@@ -1339,15 +1328,6 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../.yarn/berry/cache/agent-base-npm-7.1.4-cb8b4604d5-10c0.zip/node_modules/agent-base/",\
         "packageDependencies": [\
           ["agent-base", "npm:7.1.4"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["animejs", [\
-      ["npm:3.2.2", {\
-        "packageLocation": "../../../.yarn/berry/cache/animejs-npm-3.2.2-450609534f-10c0.zip/node_modules/animejs/",\
-        "packageDependencies": [\
-          ["animejs", "npm:3.2.2"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -2398,11 +2378,9 @@ const RAW_RUNTIME_STATE =
           ["@tauri-apps/plugin-dialog", "npm:2.4.2"],\
           ["@tauri-apps/plugin-fs", "npm:2.4.4"],\
           ["@tauri-apps/plugin-opener", "npm:2.5.2"],\
-          ["@types/animejs", "npm:3.1.13"],\
           ["@types/react", "npm:19.2.7"],\
           ["@types/react-dom", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:19.2.3"],\
           ["@vitejs/plugin-react", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:4.7.0"],\
-          ["animejs", "npm:3.2.2"],\
           ["autoprefixer", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:10.4.23"],\
           ["clsx", "npm:2.1.1"],\
           ["html2canvas", "npm:1.4.1"],\
