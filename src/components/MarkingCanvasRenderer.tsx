@@ -209,11 +209,8 @@ export const MarkingCanvasRenderer = memo(function MarkingCanvasRenderer({
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    const clientX = (e.clientX - rect.left) * scaleX;
-    const clientY = (e.clientY - rect.top) * scaleY;
+    const clientX = e.clientX - rect.left;
+    const clientY = e.clientY - rect.top;
 
     const x = Math.floor(clientX / cellSize);
     const y = Math.floor(clientY / cellSize);
@@ -230,11 +227,8 @@ export const MarkingCanvasRenderer = memo(function MarkingCanvasRenderer({
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    const clientX = (e.clientX - rect.left) * scaleX;
-    const clientY = (e.clientY - rect.top) * scaleY;
+    const clientX = e.clientX - rect.left;
+    const clientY = e.clientY - rect.top;
 
     const x = Math.floor(clientX / cellSize);
     const y = Math.floor(clientY / cellSize);

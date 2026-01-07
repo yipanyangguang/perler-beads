@@ -326,8 +326,11 @@ export class CanvasRenderer {
     colors: typeof COLORS['light']
   ) {
     const rect = getCellRect(hoveredCell, this.config);
-    this.ctx.fillStyle = colors.cellHover;
-    this.ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 1, rect.height - 1);
+    
+    // 只在边缘画一个框，不填充单元格内部
+    this.ctx.strokeStyle = colors.guideLine;
+    this.ctx.lineWidth = 2;
+    this.ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
 
     // 绘制坐标提示
     this.ctx.font = '8px monospace';
