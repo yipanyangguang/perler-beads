@@ -1,7 +1,7 @@
 import { memo, useRef, useEffect, useState, useCallback } from 'react';
 import { CellData } from '../store/useProjectStore';
 import { CanvasRenderer, RendererConfig } from '../utils/canvasRenderer';
-import { getGridCellFromMouseEvent, CanvasConfig, getGridCellFromCanvasCoords, getCellsInRange } from '../utils/canvasUtils';
+import { getGridCellFromMouseEvent, CanvasConfig } from '../utils/canvasUtils';
 
 interface CanvasGridRendererProps {
   width: number;
@@ -16,7 +16,6 @@ interface CanvasGridRendererProps {
   isSymmetric: boolean;
   symmetryAxis: 'x' | 'y';
   tool: 'brush' | 'select' | 'eraser';
-  selectedColor: string | null;
   hoveredCell: { x: number; y: number } | null;
   onCellClick: (x: number, y: number) => void;
   onCellHover: (x: number, y: number) => void;
@@ -36,7 +35,6 @@ const CanvasGridRenderer = memo(({
   isSymmetric,
   symmetryAxis,
   tool,
-  selectedColor,
   hoveredCell,
   onCellClick,
   onCellHover,
@@ -99,7 +97,7 @@ const CanvasGridRenderer = memo(({
       hoveredCell,
     };
 
-    rendererRef.current.config = rendererConfig;
+    rendererRef.current.updateConfig(rendererConfig);
     rendererRef.current.render(grid);
   }, [grid, theme, showLabels, showCenterMark, hGuides, vGuides, isSymmetric, symmetryAxis, hoveredCell, cellSize]);
 

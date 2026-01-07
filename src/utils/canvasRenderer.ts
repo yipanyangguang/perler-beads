@@ -3,7 +3,7 @@
  */
 
 import { CellData } from '../store/useProjectStore';
-import { CanvasConfig, getCellRect, getCanvasFromGridCell } from '../utils/canvasUtils';
+import { CanvasConfig, getCellRect } from '../utils/canvasUtils';
 import { getColorId, getContrastColor } from '../utils/colorUtils';
 
 export interface RendererConfig extends CanvasConfig {
@@ -54,6 +54,13 @@ export class CanvasRenderer {
     this.ctx = ctx;
     this.config = config;
     this.setupHighDPI();
+  }
+
+  /**
+   * 更新配置
+   */
+  updateConfig(config: Partial<RendererConfig>) {
+    this.config = { ...this.config, ...config };
   }
 
   /**
@@ -144,8 +151,6 @@ export class CanvasRenderer {
    * 绘制颜色单元格
    */
   private drawCells(grid: CellData[][], colors: typeof COLORS['light']) {
-    const { cellSize } = this.config;
-
     for (let y = 0; y < grid.length; y++) {
       for (let x = 0; x < grid[y].length; x++) {
         const cell = grid[y][x];
@@ -201,9 +206,9 @@ export class CanvasRenderer {
   private drawCellLabel(
     cell: CellData,
     rect: { x: number; y: number; width: number; height: number },
-    colors: typeof COLORS['light']
+    _colors: typeof COLORS['light']
   ) {
-    const colorId = getColorId(cell.color);
+    const colorId = getColorId(cell.color!);
     if (!colorId) return;
 
     const { x, y, width, height } = rect;
@@ -213,7 +218,7 @@ export class CanvasRenderer {
     this.ctx.font = 'bold 10px monospace';
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
-    this.ctx.fillStyle = getContrastColor(cell.color);
+    this.ctx.fillStyle = getContrastColor(cell.color!);
     this.ctx.fillText(colorId, centerX, centerY);
   }
 
@@ -324,14 +329,12 @@ export class CanvasRenderer {
     this.ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 1, rect.height - 1);
 
     // 绘制坐标提示
-    if (!this.config.grid?.[hoveredCell.y]?.[hoveredCell.x]?.color) {
-      this.ctx.font = '8px monospace';
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillStyle = colors.text;
-      const centerX = rect.x + rect.width / 2;
-      const centerY = rect.y + rect.height / 2;
-      this.ctx.fillText(`${hoveredCell.x + 1},${hoveredCell.y + 1}`, centerX, centerY);
-    }
+    this.ctx.font = '8px monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillStyle = colors.text;
+    const centerX = rect.x + rect.width / 2;
+    const centerY = rect.y + rect.height / 2;
+    this.ctx.fillText(`${hoveredCell.x + 1},${hoveredCell.y + 1}`, centerX, centerY);
   }
 }

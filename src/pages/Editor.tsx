@@ -804,7 +804,6 @@ export default function Editor() {
                   isSymmetric={isSymmetric}
                   symmetryAxis={symmetryAxis}
                   tool={tool}
-                  selectedColor={selectedColor}
                   hoveredCell={hoveredCell}
                   onCellClick={handleCellClick}
                   onCellHover={(x, y) => setHoveredCell({ x, y })}
@@ -957,7 +956,6 @@ export default function Editor() {
                     isSymmetric={false}
                     symmetryAxis="x"
                     tool="select"
-                    selectedColor={null}
                     hoveredCell={null}
                     onCellClick={() => {}}
                     onCellHover={() => {}}
