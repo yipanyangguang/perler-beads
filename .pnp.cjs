@@ -37,7 +37,6 @@ const RAW_RUNTIME_STATE =
           ["@types/react", "npm:19.2.7"],\
           ["@types/react-dom", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:19.2.3"],\
           ["@vitejs/plugin-react", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:4.7.0"],\
-          ["animejs", "npm:3.2.2"],\
           ["autoprefixer", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:10.4.23"],\
           ["clsx", "npm:2.1.1"],\
           ["html2canvas", "npm:1.4.1"],\
@@ -1343,15 +1342,6 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
-    ["animejs", [\
-      ["npm:3.2.2", {\
-        "packageLocation": "../../../.yarn/berry/cache/animejs-npm-3.2.2-450609534f-10c0.zip/node_modules/animejs/",\
-        "packageDependencies": [\
-          ["animejs", "npm:3.2.2"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
     ["any-promise", [\
       ["npm:1.3.0", {\
         "packageLocation": "../../../.yarn/berry/cache/any-promise-npm-1.3.0-f34eeaa7e7-10c0.zip/node_modules/any-promise/",\
@@ -2402,7 +2392,6 @@ const RAW_RUNTIME_STATE =
           ["@types/react", "npm:19.2.7"],\
           ["@types/react-dom", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:19.2.3"],\
           ["@vitejs/plugin-react", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:4.7.0"],\
-          ["animejs", "npm:3.2.2"],\
           ["autoprefixer", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:10.4.23"],\
           ["clsx", "npm:2.1.1"],\
           ["html2canvas", "npm:1.4.1"],\
