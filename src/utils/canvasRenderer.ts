@@ -67,11 +67,12 @@ export class CanvasRenderer {
    * 处理高 DPI 屏幕
    */
   private setupHighDPI() {
+    // 注意：Canvas 的宽高已经由调用者在外部设置好了（在组件中）
+    // 这里不需要重新设置，只需要在必要时使用 devicePixelRatio
     const dpr = window.devicePixelRatio || 1;
-    const canvas = this.ctx.canvas;
-    canvas.width = canvas.offsetWidth * dpr;
-    canvas.height = canvas.offsetHeight * dpr;
-    this.ctx.scale(dpr, dpr);
+    if (dpr !== 1) {
+      this.ctx.scale(dpr, dpr);
+    }
   }
 
   /**

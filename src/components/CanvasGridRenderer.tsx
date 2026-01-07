@@ -59,11 +59,17 @@ const CanvasGridRenderer = memo(({
     if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
-    // 设置 Canvas 尺寸
-    const totalWidth = width * cellSize + 1;
-    const totalHeight = height * cellSize + 1;
-    canvas.width = totalWidth;
-    canvas.height = totalHeight;
+    const dpr = window.devicePixelRatio || 1;
+    
+    // 设置 Canvas 尺寸 - 不需要额外的 +1，只需要精确的单元格大小
+    const totalWidth = width * cellSize;
+    const totalHeight = height * cellSize;
+    
+    // 高 DPI 屏幕支持
+    canvas.width = totalWidth * dpr;
+    canvas.height = totalHeight * dpr;
+    canvas.style.width = `${totalWidth}px`;
+    canvas.style.height = `${totalHeight}px`;
 
     // 创建渲染器
     const rendererConfig: RendererConfig = {

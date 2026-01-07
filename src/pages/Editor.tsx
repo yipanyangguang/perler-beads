@@ -728,10 +728,11 @@ export default function Editor() {
 
               {/* Top Ruler */}
               <div 
-                className="grid border-b border-zinc-200 dark:border-zinc-800 overflow-hidden"
+                className="grid border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-x-auto"
                 style={{
                   gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
-                  gap: '1px'
+                  gap: '0',
+                  height: '32px'
                 }}
               >
                 {Array.from({ length: width }).map((_, i) => (
@@ -744,11 +745,12 @@ export default function Editor() {
                       setContextMenu({ type: 'col', index: i, x: e.clientX, y: e.clientY });
                     }}
                     className={clsx(
-                      "flex items-end justify-center text-[10px] border-r pb-1 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors select-none",
+                      "flex items-end justify-center text-[10px] pb-1 cursor-pointer hover:brightness-95 dark:hover:brightness-110 transition-colors select-none border-r border-zinc-100 dark:border-zinc-900",
                       vGuides.has(i) 
-                        ? "text-blue-600 dark:text-blue-400 font-bold border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
-                        : "text-zinc-400 dark:text-zinc-500 border-zinc-200/50 dark:border-zinc-800/50"
+                        ? "text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/20" 
+                        : "text-zinc-400 dark:text-zinc-500 bg-white dark:bg-zinc-950"
                     )}
+                    style={{ height: '32px', minWidth: `${cellSize}px`, width: `${cellSize}px` }}
                   >
                     {i + 1}
                   </div>
@@ -757,10 +759,11 @@ export default function Editor() {
 
               {/* Left Ruler */}
               <div 
-                className="grid border-r border-zinc-200 dark:border-zinc-800 overflow-hidden"
+                className="grid border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-y-auto"
                 style={{
                   gridTemplateRows: `repeat(${height}, ${cellSize}px)`,
-                  gap: '1px'
+                  gap: '0',
+                  width: '32px'
                 }}
               >
                 {Array.from({ length: height }).map((_, i) => (
@@ -773,11 +776,12 @@ export default function Editor() {
                       setContextMenu({ type: 'row', index: i, x: e.clientX, y: e.clientY });
                     }}
                     className={clsx(
-                      "flex items-center justify-end text-[10px] border-b pr-1 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors select-none",
+                      "flex items-center justify-end text-[10px] pr-1 cursor-pointer hover:brightness-95 dark:hover:brightness-110 transition-colors select-none border-b border-zinc-100 dark:border-zinc-900",
                       hGuides.has(i) 
-                        ? "text-blue-600 dark:text-blue-400 font-bold border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
-                        : "text-zinc-400 dark:text-zinc-500 border-zinc-200/50 dark:border-zinc-800/50"
+                        ? "text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/20" 
+                        : "text-zinc-400 dark:text-zinc-500 bg-white dark:bg-zinc-950"
                     )}
+                    style={{ width: '32px', minHeight: `${cellSize}px`, height: `${cellSize}px` }}
                   >
                     {i + 1}
                   </div>
@@ -786,9 +790,10 @@ export default function Editor() {
 
               {/* Grid */}
               <div 
-                className="bg-zinc-200 dark:bg-zinc-800 border-r border-b border-zinc-200 dark:border-zinc-800"
+                className="bg-white dark:bg-zinc-950"
                 style={{
-                  width: 'fit-content'
+                  width: 'fit-content',
+                  height: 'fit-content'
                 }}
               >
                 <CanvasGridRenderer 
