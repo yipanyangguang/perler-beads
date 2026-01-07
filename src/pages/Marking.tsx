@@ -1,125 +1,11 @@
-import { ArrowLeft, Check, Eye, EyeOff, Grid3X3, Plus, Trash2, X, ZoomIn, ZoomOut, Moon, Sun, CheckSquare, Square, Brush } from "lucide-react";
-import { useRef, useState, useMemo, useCallback, memo, useEffect } from "react";
+import { ArrowLeft, Check, Eye, EyeOff, Grid3X3, Plus, Trash2, ZoomIn, ZoomOut, Moon, Sun, CheckSquare, Square, Brush } from "lucide-react";
+import { useRef, useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProjectStore, CellData } from "../store/useProjectStore";
+import { useProjectStore } from "../store/useProjectStore";
 import { useTheme } from "../hooks/useTheme";
 import clsx from "clsx";
 import { getColorId, getContrastColor } from "../utils/colorUtils";
-
-// Memoized Cell Component to improve performance
-interface MarkingCellProps {
-  cell: CellData;
-  cellSize: number;
-  isMarked: boolean;
-  isCenter: boolean;
-  hasVGuide: boolean;
-  hasHGuide: boolean;
-  showLabels: boolean;
-  zoom: number;
-  isHovered: boolean;
-  isHidden: boolean;
-  onMouseDown: (x: number, y: number) => void;
-  onMouseEnter: (x: number, y: number) => void;
-}
-
-const MarkingCell = memo(({ 
-  cell, 
-  cellSize, 
-  isMarked, 
-  isCenter, 
-  hasVGuide, 
-  hasHGuide, 
-  showLabels, 
-  zoom, 
-  isHovered,
-  isHidden,
-  onMouseDown,
-  onMouseEnter 
-}: MarkingCellProps) => {
-  const isFrosted = cell.color === '#FDFBFF';
-
-  if (isHidden) {
-    return (
-      <div
-        style={{ 
-          width: `${cellSize}px`,
-          height: `${cellSize}px`
-        }}
-        className={clsx(
-          "grid-cell bg-white dark:bg-zinc-900 transition-colors duration-75 relative flex items-center justify-center",
-          hasVGuide && "!border-r-2 !border-r-blue-400 dark:!border-r-blue-500 z-10",
-          hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10"
-        )}
-      />
-    );
-  }
-
-  return (
-    <div
-      id={`cell-${cell.x}-${cell.y}`}
-      className={clsx(
-        "grid-cell bg-white dark:bg-zinc-900 hover:brightness-95 dark:hover:brightness-110 cursor-pointer transition-colors duration-75 relative flex items-center justify-center",
-        hasVGuide && "!border-r-2 !border-r-blue-400 dark:!border-r-blue-500 z-10",
-        hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10",
-        isMarked && "after:content-[''] after:absolute after:inset-0 after:bg-black/10 dark:after:bg-white/10",
-        isFrosted && "frosted-bead"
-      )}
-      style={{ 
-        backgroundColor: isFrosted ? undefined : (cell.color || undefined),
-        width: `${cellSize}px`,
-        height: `${cellSize}px`
-      }}
-      onMouseDown={() => onMouseDown(cell.x, cell.y)}
-      onMouseEnter={() => onMouseEnter(cell.x, cell.y)}
-    >
-      {/* Marked Indicator - Adjusted opacity and color */}
-      {isMarked && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-          <Check size={cellSize * 0.8} className="text-green-500/80 drop-shadow-sm" strokeWidth={2.5} />
-        </div>
-      )}
-
-      {/* Center Mark */}
-      {isCenter && !cell.color && !isMarked && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <X size={cellSize * 0.6} className="text-zinc-300 dark:text-zinc-600 opacity-50" strokeWidth={1.5} />
-        </div>
-      )}
-
-      {/* Hover Coordinates */}
-      {isHovered && !cell.color && !isCenter && (
-        <span className="pointer-events-none text-[8px] text-zinc-400 select-none">
-          {cell.x+1},{cell.y+1}
-        </span>
-      )}
-      
-      {/* Color Label */}
-      {showLabels && cell.color && zoom >= 0.8 && (
-        <span 
-          className="pointer-events-none text-[8px] font-bold select-none"
-          style={{ color: getContrastColor(cell.color) }}
-        >
-          {getColorId(cell.color)}
-        </span>
-      )}
-    </div>
-  );
-}, (prev, next) => {
-  return (
-    prev.cell === next.cell &&
-    prev.cellSize === next.cellSize &&
-    prev.isMarked === next.isMarked &&
-    prev.isCenter === next.isCenter &&
-    prev.hasVGuide === next.hasVGuide &&
-    prev.hasHGuide === next.hasHGuide &&
-    prev.showLabels === next.showLabels &&
-    prev.zoom === next.zoom &&
-    prev.isHovered === next.isHovered &&
-    prev.isHidden === next.isHidden &&
-    prev.onMouseDown === next.onMouseDown &&
-    prev.onMouseEnter === next.onMouseEnter
-  );
-});
+import { MarkingCanvasRenderer } from "../components/MarkingCanvasRenderer";
 
 export default function Marking() {
   const navigate = useNavigate();
@@ -432,7 +318,7 @@ export default function Marking() {
 
               {/* Top Ruler */}
               <div 
-                className="grid border-b border-zinc-200 dark:border-zinc-800 overflow-hidden"
+                className="grid border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto"
                 style={{
                   gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
                   gap: '1px'
@@ -443,11 +329,12 @@ export default function Marking() {
                     key={i} 
                     onClick={() => toggleVGuide(i)}
                     className={clsx(
-                      "flex items-end justify-center text-[10px] border-r pb-1 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors select-none",
+                      "flex items-end justify-center text-[10px] border-r pb-1 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors select-none flex-shrink-0",
                       vGuides.has(i) 
                         ? "text-blue-600 dark:text-blue-400 font-bold border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
                         : "text-zinc-400 dark:text-zinc-500 border-zinc-200/50 dark:border-zinc-800/50"
                     )}
+                    style={{ width: `${cellSize}px` }}
                   >
                     {i + 1}
                   </div>
@@ -456,7 +343,7 @@ export default function Marking() {
 
               {/* Left Ruler */}
               <div 
-                className="grid border-r border-zinc-200 dark:border-zinc-800 overflow-hidden"
+                className="grid border-r border-zinc-200 dark:border-zinc-800 overflow-y-auto"
                 style={{
                   gridTemplateRows: `repeat(${height}, ${cellSize}px)`,
                   gap: '1px'
@@ -467,54 +354,42 @@ export default function Marking() {
                     key={i} 
                     onClick={() => toggleHGuide(i)}
                     className={clsx(
-                      "flex items-center justify-end text-[10px] border-b pr-1 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors select-none",
+                      "flex items-center justify-end text-[10px] border-b pr-1 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors select-none flex-shrink-0",
                       hGuides.has(i) 
                         ? "text-blue-600 dark:text-blue-400 font-bold border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
                         : "text-zinc-400 dark:text-zinc-500 border-zinc-200/50 dark:border-zinc-800/50"
                     )}
+                    style={{ height: `${cellSize}px` }}
                   >
                     {i + 1}
                   </div>
                 ))}
               </div>
 
-              {/* Grid */}
+              {/* Canvas Grid */}
               <div 
                 ref={gridRef}
-                className="grid gap-px bg-zinc-200 dark:bg-zinc-800 border-r border-b border-zinc-200 dark:border-zinc-800"
-                style={{
-                  gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
-                  width: 'fit-content'
-                }}
-                onMouseLeave={handleMouseLeave}
+                className="overflow-auto bg-zinc-200 dark:bg-zinc-800"
               >
-                {grid.map((row, y) => (
-                  row.map((cell, x) => {
-                    const isCenter = showCenterMark && x === centerX && y === centerY;
-                    const hasVGuide = vGuides.has(x);
-                    const hasHGuide = hGuides.has(y);
-                    const isMarked = !!markedCells[cell.id];
-                    const isHidden = cell.color ? hiddenColors.has(cell.color) : false;
-
-                    return (
-                      <MarkingCell
-                        key={cell.id}
-                        cell={cell}
-                        cellSize={cellSize}
-                        isMarked={isMarked}
-                        isCenter={isCenter}
-                        hasVGuide={hasVGuide}
-                        hasHGuide={hasHGuide}
-                        showLabels={showLabels}
-                        zoom={zoom}
-                        isHovered={hoveredCell?.x === x && hoveredCell?.y === y}
-                        isHidden={isHidden}
-                        onMouseDown={handleCellClick}
-                        onMouseEnter={handleMouseEnter}
-                      />
-                    );
-                  })
-                ))}
+                <MarkingCanvasRenderer
+                  grid={grid}
+                  width={width}
+                  height={height}
+                  zoom={zoom}
+                  theme={theme}
+                  showLabels={showLabels}
+                  showCenterMark={showCenterMark}
+                  centerX={centerX}
+                  centerY={centerY}
+                  hGuides={hGuides}
+                  vGuides={vGuides}
+                  markedCells={markedCells}
+                  hiddenColors={hiddenColors}
+                  hoveredCell={hoveredCell}
+                  onCellClick={handleCellClick}
+                  onCellHover={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                />
               </div>
             </div>
 
