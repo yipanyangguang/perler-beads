@@ -1,4 +1,5 @@
-import { ArrowLeft, ArrowUp, ArrowRight, ArrowDown, Eraser, MousePointer2, Paintbrush, Save, ZoomIn, ZoomOut, ChevronDown, Eye, EyeOff, X, Grid3X3, Trash2, Plus, Loader2, Wand2, Moon, Sun, FlipHorizontal, FlipVertical, Copy, Undo, Redo, MoreHorizontal, Image as LucideImage, List, LayoutGrid } from "lucide-react";
+import CanvasGrid from "../components/CanvasGrid";
+import { ArrowLeft, ArrowUp, ArrowRight, ArrowDown, Eraser, MousePointer2, Paintbrush, Save, ZoomIn, ZoomOut, ChevronDown, Eye, EyeOff, Grid3X3, Trash2, Plus, Loader2, Wand2, Moon, Sun, FlipHorizontal, FlipVertical, Copy, Undo, Redo, MoreHorizontal, Image as LucideImage, List, LayoutGrid } from "lucide-react";
 import { useRef, useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProjectStore } from "../store/useProjectStore";
@@ -21,7 +22,6 @@ export default function Editor() {
   const [tool, setTool] = useState<"brush" | "select" | "eraser">("select");
   const [isSymmetric, setIsSymmetric] = useState(false);
   const [symmetryAxis, setSymmetryAxis] = useState<'x' | 'y'>('x');
-  const [isDragging, setIsDragging] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [isGridSettingsOpen, setIsGridSettingsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -39,7 +39,6 @@ export default function Editor() {
   const [vGuides, setVGuides] = useState<Set<number>>(new Set());
   const [hoveredCell, setHoveredCell] = useState<{x: number, y: number} | null>(null);
   
-  const gridRef = useRef<HTMLDivElement>(null);
   const gridBtnRef = useRef<HTMLButtonElement>(null);
   const colorBtnRef = useRef<HTMLButtonElement>(null);
   const [gridPopupPos, setGridPopupPos] = useState<{top: number, right: number} | null>(null);
@@ -61,10 +60,6 @@ export default function Editor() {
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
   }, []);
-
-  // Calculate center
-  const centerX = Math.floor(width / 2);
-  const centerY = Math.floor(height / 2);
 
   // Guide helpers
   const toggleHGuide = (y: number) => {
@@ -194,31 +189,6 @@ export default function Editor() {
         }
         if (mirrorX !== x || mirrorY !== y) {
           setCellColor(mirrorX, mirrorY, null);
-        }
-      }
-    }
-  };
-
-  const handleMouseEnter = (x: number, y: number) => {
-    setHoveredCell({ x, y });
-    if (isDragging) {
-      if (tool === "brush") {
-        setCellColor(x, y, selectedColor);
-        if (isSymmetric) {
-          let mirrorX = x;
-          let mirrorY = y;
-          if (symmetryAxis === 'x') mirrorX = width - 1 - x;
-          else mirrorY = height - 1 - y;
-          if (mirrorX !== x || mirrorY !== y) setCellColor(mirrorX, mirrorY, selectedColor);
-        }
-      } else if (tool === "eraser") {
-        setCellColor(x, y, null);
-        if (isSymmetric) {
-          let mirrorX = x;
-          let mirrorY = y;
-          if (symmetryAxis === 'x') mirrorX = width - 1 - x;
-          else mirrorY = height - 1 - y;
-          if (mirrorX !== x || mirrorY !== y) setCellColor(mirrorX, mirrorY, null);
         }
       }
     }
@@ -850,90 +820,32 @@ export default function Editor() {
 
               {/* Grid */}
               <div 
-                ref={gridRef}
-                className="grid gap-px bg-zinc-200 dark:bg-zinc-800 border-r border-b border-zinc-200 dark:border-zinc-800"
+                className="bg-zinc-200 dark:bg-zinc-800 border-r border-b border-zinc-200 dark:border-zinc-800"
                 style={{
-                  gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
                   width: 'fit-content'
                 }}
-                onMouseDown={() => setIsDragging(true)}
-                onMouseUp={() => setIsDragging(false)}
-                onMouseLeave={() => {
-                  setIsDragging(false);
-                  handleMouseLeave();
-                }}
               >
-                {grid.map((row, y) => (
-                  row.map((cell, x) => {
-                    const isCenter = showCenterMark && x === centerX && y === centerY;
-                    const hasVGuide = vGuides.has(x);
-                    const hasHGuide = hGuides.has(y);
-                    const isFrosted = cell.color === '#FDFBFF';
-                    
-                    // Symmetry Line Logic
-                    let symmetryClass = "";
-                    if (isSymmetric) {
-                      if (symmetryAxis === 'x') {
-                        if (width % 2 === 0) {
-                          if (x === width / 2 - 1) symmetryClass = "!border-r-2 !border-r-purple-500 z-20";
-                        } else {
-                          if (x === Math.floor(width / 2)) symmetryClass = "after:content-[''] after:absolute after:inset-0 after:bg-purple-500/10 after:pointer-events-none";
-                        }
-                      } else {
-                        if (height % 2 === 0) {
-                          if (y === height / 2 - 1) symmetryClass = "!border-b-2 !border-b-purple-500 z-20";
-                        } else {
-                          if (y === Math.floor(height / 2)) symmetryClass = "after:content-[''] after:absolute after:inset-0 after:bg-purple-500/10 after:pointer-events-none";
-                        }
-                      }
-                    }
-
-                    return (
-                      <div
-                        key={cell.id}
-                        id={`cell-${x}-${y}`}
-                        className={clsx(
-                          "grid-cell bg-white dark:bg-zinc-900 hover:brightness-95 dark:hover:brightness-110 cursor-pointer transition-colors duration-75 relative flex items-center justify-center",
-                          hasVGuide && "!border-r-2 !border-r-blue-400 dark:!border-r-blue-500 z-10",
-                          hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10",
-                          symmetryClass,
-                          isFrosted && "frosted-bead"
-                        )}
-                        style={{ 
-                          backgroundColor: isFrosted ? undefined : (cell.color || undefined),
-                          width: `${cellSize}px`,
-                          height: `${cellSize}px`
-                        }}
-                        onMouseDown={() => handleCellClick(x, y)}
-                        onMouseEnter={() => handleMouseEnter(x, y)}
-                      >
-                        {/* Center Mark */}
-                        {isCenter && !cell.color && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <X size={cellSize * 0.6} className="text-zinc-300 dark:text-zinc-600 opacity-50" strokeWidth={1.5} />
-                          </div>
-                        )}
-
-                        {/* Hover Coordinates */}
-                        {hoveredCell?.x === x && hoveredCell?.y === y && !cell.color && !isCenter && (
-                          <span className="pointer-events-none text-[8px] text-zinc-400 select-none">
-                            {x+1},{y+1}
-                          </span>
-                        )}
-                        
-                        {/* Color Label */}
-                        {showLabels && cell.color && zoom >= 0.8 && (
-                          <span 
-                            className="pointer-events-none text-[8px] font-bold select-none"
-                            style={{ color: getContrastColor(cell.color) }}
-                          >
-                            {getColorId(cell.color)}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })
-                ))}
+                <CanvasGrid 
+                  width={width}
+                  height={height}
+                  grid={grid}
+                  zoom={zoom}
+                  theme={theme as 'light' | 'dark'}
+                  showLabels={showLabels}
+                  showCenterMark={showCenterMark}
+                  hGuides={hGuides}
+                  vGuides={vGuides}
+                  isSymmetric={isSymmetric}
+                  symmetryAxis={symmetryAxis}
+                  tool={tool}
+                  selectedColor={selectedColor}
+                  hoveredCell={hoveredCell}
+                  onCellClick={handleCellClick}
+                  onCellHover={(x, y) => setHoveredCell({ x, y })}
+                  onMouseLeave={() => {
+                    handleMouseLeave();
+                  }}
+                />
               </div>
             </div>
 
