@@ -1,4 +1,4 @@
-import CanvasGrid from "../components/CanvasGrid";
+import CanvasGridRenderer from "../components/CanvasGridRenderer";
 import { ArrowLeft, ArrowUp, ArrowRight, ArrowDown, Eraser, MousePointer2, Paintbrush, Save, ZoomIn, ZoomOut, ChevronDown, Eye, EyeOff, Grid3X3, Trash2, Plus, Loader2, Wand2, Moon, Sun, FlipHorizontal, FlipVertical, Copy, Undo, Redo, MoreHorizontal, Image as LucideImage, List, LayoutGrid } from "lucide-react";
 import { useRef, useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -791,7 +791,7 @@ export default function Editor() {
                   width: 'fit-content'
                 }}
               >
-                <CanvasGrid 
+                <CanvasGridRenderer 
                   width={width}
                   height={height}
                   grid={grid}
@@ -942,30 +942,27 @@ export default function Editor() {
                         filter: 'contrast(120%) brightness(100%)'
                       }}></div>
                 
-                {/* Beads */}
-                <div 
-                  className="grid gap-0 relative z-10" 
-                  style={{ 
-                    gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
-                    width: 'fit-content'
-                  }}
-                >
-                  {grid.map((row) => (
-                    row.map((cell) => (
-                      <div
-                        key={`preview-${cell.id}`}
-                        className={clsx(cell.color === '#FDFBFF' && "frosted-bead")}
-                        style={{ 
-                          backgroundColor: cell.color === '#FDFBFF' ? undefined : (cell.color || 'transparent'),
-                          width: `${cellSize}px`,
-                          height: `${cellSize}px`,
-                          borderRadius: '0',
-                          transform: cell.color ? 'scale(1)' : 'none',
-                          zIndex: cell.color ? 1 : 0
-                        }}
-                      />
-                    ))
-                  ))}
+                {/* Preview Canvas Grid */}
+                <div className="relative z-10">
+                  <CanvasGridRenderer 
+                    width={width}
+                    height={height}
+                    grid={grid}
+                    zoom={zoom}
+                    theme="light"
+                    showLabels={false}
+                    showCenterMark={false}
+                    hGuides={new Set()}
+                    vGuides={new Set()}
+                    isSymmetric={false}
+                    symmetryAxis="x"
+                    tool="select"
+                    selectedColor={null}
+                    hoveredCell={null}
+                    onCellClick={() => {}}
+                    onCellHover={() => {}}
+                    onMouseLeave={() => {}}
+                  />
                 </div>
               </div>
             </div>
