@@ -5,7 +5,7 @@
 
 import { FC } from "react";
 import { X } from "lucide-react";
-import styles from "./Home.module.scss";
+import styles from "../pages/Home.module.scss";
 
 /**
  * CreateProjectModal 组件的 Props

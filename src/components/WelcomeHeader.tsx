@@ -5,7 +5,7 @@
 
 import { FC } from "react";
 import logo from "../assets/logo.svg";
-import styles from "./Home.module.scss";
+import styles from "../pages/Home.module.scss";
 
 /**
  * WelcomeHeader 组件的 Props

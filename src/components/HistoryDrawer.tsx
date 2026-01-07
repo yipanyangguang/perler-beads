@@ -6,7 +6,7 @@
 import { FC } from "react";
 import { History, X, Trash2 } from "lucide-react";
 import { HistoryItem } from "../store/useProjectStore";
-import styles from "./Home.module.scss";
+import styles from "../pages/Home.module.scss";
 
 /**
  * HistoryDrawer 组件的 Props

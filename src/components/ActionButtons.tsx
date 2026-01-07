@@ -5,7 +5,7 @@
 
 import { FC } from "react";
 import { Plus, Upload } from "lucide-react";
-import styles from "./Home.module.scss";
+import styles from "../pages/Home.module.scss";
 
 /**
  * ActionButtons 组件的 Props
