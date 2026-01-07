@@ -17,7 +17,7 @@ import iconSvg from '../assets/logo.png';
 
 export default function Editor() {
   const navigate = useNavigate();
-  const { grid, width, height, name, setCellColor, moveGrid, addRow, deleteRow, addColumn, deleteColumn, replaceColor, undo, redo, undoStack, redoStack } = useProjectStore();
+  const { grid, width, height, name, setCellColor, moveGrid, addRow, deleteRow, addColumn, deleteColumn, replaceColor, undo, redo, undoStack, redoStack, backgroundImageUrl, backgroundImageOpacity, setBackgroundImage, setBackgroundImageOpacity, removeBackgroundImage } = useProjectStore();
   const { theme, toggleTheme } = useTheme();
   
   const [selectedColor, setSelectedColor] = useState<string | null>("#000000");
@@ -40,6 +40,9 @@ export default function Editor() {
   const [hGuides, setHGuides] = useState<Set<number>>(new Set());
   const [vGuides, setVGuides] = useState<Set<number>>(new Set());
   const [hoveredCell, setHoveredCell] = useState<{x: number, y: number} | null>(null);
+  const [isBackgroundSettingsOpen, setIsBackgroundSettingsOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const backgroundBtnRef = useRef<HTMLButtonElement>(null);
   
   const gridBtnRef = useRef<HTMLButtonElement>(null);
   const colorBtnRef = useRef<HTMLButtonElement>(null);
@@ -98,6 +101,27 @@ export default function Editor() {
   const clearGuides = () => {
     setHGuides(new Set());
     setVGuides(new Set());
+  };
+
+  // Background image handlers
+  const handleBackgroundImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setBackgroundImage(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveBackgroundImage = () => {
+    removeBackgroundImage();
+  };
+
+  const handleBackgroundOpacityChange = (value: number) => {
+    setBackgroundImageOpacity(value);
   };
 
   // Calculate color statistics
@@ -516,6 +540,111 @@ export default function Editor() {
             )}
           </div>
 
+          {/* Background Image Settings */}
+          <button 
+            ref={backgroundBtnRef}
+            onClick={() => {
+              const rect = backgroundBtnRef.current?.getBoundingClientRect();
+              if (rect) {
+                setIsBackgroundSettingsOpen(!isBackgroundSettingsOpen);
+                setGridPopupPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+              }
+            }}
+            className={clsx(
+              "p-2 rounded-lg transition-colors",
+              isBackgroundSettingsOpen
+                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
+            )}
+            title="背景图设置"
+          >
+            <LucideImage size={20} />
+          </button>
+
+          {isBackgroundSettingsOpen && gridPopupPos && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setIsBackgroundSettingsOpen(false)}
+              />
+              <div 
+                className="fixed bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl z-50 w-72 p-4 animate-in fade-in zoom-in-95 duration-200"
+                style={{ top: gridPopupPos.top, right: gridPopupPos.right }}
+              >
+                <h3 className="font-bold text-sm mb-3 text-zinc-900 dark:text-white">背景图设置</h3>
+                
+                <div className="space-y-3">
+                  {/* Upload Button */}
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  >
+                    <LucideImage size={16} />
+                    <span>导入背景图</span>
+                  </button>
+                  <input 
+                    ref={fileInputRef}
+                    type="file" 
+                    accept="image/*"
+                    onChange={handleBackgroundImageUpload}
+                    className="hidden"
+                  />
+
+                  {/* Background Image Status */}
+                  {backgroundImageUrl ? (
+                    <>
+                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                        <p className="text-xs text-green-600 dark:text-green-400 font-medium mb-2">✓ 已导入背景图</p>
+                        
+                        {/* Opacity Slider */}
+                        <div className="space-y-2">
+                          <label className="flex items-center justify-between text-sm">
+                            <span className="text-zinc-600 dark:text-zinc-400">透明度</span>
+                            <span className="font-mono text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-700 px-2 py-1 rounded text-xs">
+                              {backgroundImageOpacity}%
+                            </span>
+                          </label>
+                          <input 
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={backgroundImageOpacity}
+                            onChange={(e) => handleBackgroundOpacityChange(parseInt(e.target.value))}
+                            className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          />
+                          <div className="flex text-xs text-zinc-500 dark:text-zinc-400 justify-between">
+                            <span>0% (隐藏)</span>
+                            <span>100% (可见)</span>
+                          </div>
+                        </div>
+
+                        {/* Remove Button */}
+                        <button 
+                          onClick={handleRemoveBackgroundImage}
+                          className="w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 text-sm bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors border border-red-200 dark:border-red-800"
+                        >
+                          <Trash2 size={14} />
+                          <span>删除背景图</span>
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="bg-zinc-50 dark:bg-zinc-700/50 border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg p-3">
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
+                        未导入背景图<br />
+                        点击上方按钮选择图片
+                      </p>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-2 px-1">
+                    💡 背景图将以 100% 宽高适配编辑板块，调整透明度后可以看到背景图内容。
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Move Grid Controls */}
           <div className="flex items-center gap-1 mr-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
             <button onClick={() => moveGrid('left')} className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded" title="向左移动"><ArrowLeft size={14} /></button>
@@ -813,6 +942,8 @@ export default function Editor() {
                   symmetryAxis={symmetryAxis}
                   tool={tool}
                   hoveredCell={hoveredCell}
+                  backgroundImageUrl={backgroundImageUrl}
+                  backgroundImageOpacity={backgroundImageOpacity}
                   onCellClick={handleCellClick}
                   onCellHover={(x, y) => setHoveredCell({ x, y })}
                   onMouseLeave={() => {
@@ -965,6 +1096,8 @@ export default function Editor() {
                     symmetryAxis="x"
                     tool="select"
                     hoveredCell={null}
+                    backgroundImageUrl={backgroundImageUrl}
+                    backgroundImageOpacity={backgroundImageOpacity}
                     onCellClick={() => {}}
                     onCellHover={() => {}}
                     onMouseLeave={() => {}}

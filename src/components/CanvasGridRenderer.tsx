@@ -17,6 +17,8 @@ interface CanvasGridRendererProps {
   symmetryAxis: 'x' | 'y';
   tool: 'brush' | 'select' | 'eraser';
   hoveredCell: { x: number; y: number } | null;
+  backgroundImageUrl?: string;
+  backgroundImageOpacity?: number;
   onCellClick: (x: number, y: number) => void;
   onCellHover: (x: number, y: number) => void;
   onMouseLeave: () => void;
@@ -36,6 +38,8 @@ const CanvasGridRenderer = memo(({
   symmetryAxis,
   tool,
   hoveredCell,
+  backgroundImageUrl,
+  backgroundImageOpacity,
   onCellClick,
   onCellHover,
   onMouseLeave,
@@ -82,10 +86,12 @@ const CanvasGridRenderer = memo(({
       isSymmetric,
       symmetryAxis,
       hoveredCell,
+      backgroundImageUrl,
+      backgroundImageOpacity,
     };
 
     rendererRef.current = new CanvasRenderer(canvas, rendererConfig);
-  }, [width, height, cellSize, theme, showLabels, showCenterMark]);
+  }, [width, height, cellSize, theme, showLabels, showCenterMark, backgroundImageUrl, backgroundImageOpacity]);
 
   // 更新渲染器配置和重绘
   useEffect(() => {
@@ -101,11 +107,13 @@ const CanvasGridRenderer = memo(({
       isSymmetric,
       symmetryAxis,
       hoveredCell,
+      backgroundImageUrl,
+      backgroundImageOpacity,
     };
 
     rendererRef.current.updateConfig(rendererConfig);
     rendererRef.current.render(grid);
-  }, [grid, theme, showLabels, showCenterMark, hGuides, vGuides, isSymmetric, symmetryAxis, hoveredCell, cellSize]);
+  }, [grid, theme, showLabels, showCenterMark, hGuides, vGuides, isSymmetric, symmetryAxis, hoveredCell, cellSize, backgroundImageUrl, backgroundImageOpacity]);
 
   // 处理鼠标按下
   const handleMouseDown = useCallback(

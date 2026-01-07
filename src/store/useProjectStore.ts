@@ -17,6 +17,8 @@ export interface ProjectState {
   grid: CellData[][];
   markedCells: Record<string, boolean>; // id -> isMarked
   lastModified: number;
+  backgroundImageUrl?: string; // Base64 or URL for background image
+  backgroundImageOpacity?: number; // 0-100
 }
 
 export interface HistoryItem {
@@ -54,6 +56,9 @@ interface ProjectStore extends ProjectState {
   addColumn: (index: number) => void;
   deleteColumn: (index: number) => void;
   replaceColor: (oldColor: string, newColor: string | null) => void;
+  setBackgroundImage: (imageUrl: string) => void;
+  setBackgroundImageOpacity: (opacity: number) => void;
+  removeBackgroundImage: () => void;
 }
 
 const generateGrid = (width: number, height: number): CellData[][] => {
@@ -86,6 +91,8 @@ export const useProjectStore = create<ProjectStore>()(
       grid: [],
       markedCells: {},
       lastModified: 0,
+      backgroundImageUrl: undefined,
+      backgroundImageOpacity: 100,
 
       createProject: (width, height, name = 'Untitled Project') => {
         set({
@@ -502,6 +509,15 @@ export const useProjectStore = create<ProjectStore>()(
         set((state) => ({
           history: (state.history || []).filter((item) => item.path !== path),
         })),
+
+      setBackgroundImage: (imageUrl) =>
+        set({ backgroundImageUrl: imageUrl, backgroundImageOpacity: 100 }),
+
+      setBackgroundImageOpacity: (opacity) =>
+        set({ backgroundImageOpacity: Math.max(0, Math.min(100, opacity)) }),
+
+      removeBackgroundImage: () =>
+        set({ backgroundImageUrl: undefined, backgroundImageOpacity: 100 }),
     }),
     {
       name: 'perler-beads-storage',
@@ -514,6 +530,8 @@ export const useProjectStore = create<ProjectStore>()(
         markedCells: state.markedCells,
         lastModified: state.lastModified,
         history: state.history,
+        backgroundImageUrl: state.backgroundImageUrl,
+        backgroundImageOpacity: state.backgroundImageOpacity,
       }),
     }
   )

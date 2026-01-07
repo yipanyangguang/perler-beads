@@ -15,6 +15,8 @@ export interface RendererConfig extends CanvasConfig {
   isSymmetric: boolean;
   symmetryAxis: 'x' | 'y';
   hoveredCell: { x: number; y: number } | null;
+  backgroundImageUrl?: string;
+  backgroundImageOpacity?: number;
 }
 
 const COLORS = {
@@ -47,6 +49,8 @@ const COLORS = {
 export class CanvasRenderer {
   private ctx: CanvasRenderingContext2D;
   private config: RendererConfig;
+  private backgroundImage: HTMLImageElement | null = null;
+  private backgroundImageUrl: string | null = null;
 
   constructor(canvas: HTMLCanvasElement, config: RendererConfig) {
     const ctx = canvas.getContext('2d');
@@ -54,6 +58,7 @@ export class CanvasRenderer {
     this.ctx = ctx;
     this.config = config;
     this.setupHighDPI();
+    this.loadBackgroundImage(config.backgroundImageUrl);
   }
 
   /**
@@ -61,6 +66,10 @@ export class CanvasRenderer {
    */
   updateConfig(config: Partial<RendererConfig>) {
     this.config = { ...this.config, ...config };
+    // 如果背景图URL变化，重新加载
+    if (config.backgroundImageUrl !== this.backgroundImageUrl) {
+      this.loadBackgroundImage(config.backgroundImageUrl);
+    }
   }
 
   /**
@@ -84,6 +93,9 @@ export class CanvasRenderer {
 
     // 绘制背景
     this.drawBackground(colors);
+
+    // 绘制背景图
+    this.drawBackgroundImage();
 
     // 绘制网格线
     this.drawGridLines(colors);
@@ -341,4 +353,60 @@ export class CanvasRenderer {
     const centerY = rect.y + rect.height / 2;
     this.ctx.fillText(`${hoveredCell.x + 1},${hoveredCell.y + 1}`, centerX, centerY);
   }
-}
+
+  /**
+   * 加载背景图
+   */
+  private loadBackgroundImage(imageUrl?: string) {
+    this.backgroundImageUrl = imageUrl || null;
+    
+    if (!imageUrl) {
+      this.backgroundImage = null;
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      this.backgroundImage = img;
+    };
+    img.onerror = () => {
+      console.error('Failed to load background image');
+      this.backgroundImage = null;
+    };
+    img.src = imageUrl;
+  }
+
+  /**
+   * 绘制背景图
+   */
+  private drawBackgroundImage() {
+    if (!this.backgroundImage || !this.config.backgroundImageUrl) {
+      return;
+    }
+
+    const { width, height, cellSize, offsetX, offsetY } = this.config;
+    const opacity = (this.config.backgroundImageOpacity ?? 100) / 100;
+    
+    // 保存当前全局透明度
+    const savedAlpha = this.ctx.globalAlpha;
+    this.ctx.globalAlpha = opacity;
+
+    try {
+      // 计算要绘制的区域（适配网格大小）
+      const drawWidth = width * cellSize;
+      const drawHeight = height * cellSize;
+      
+      this.ctx.drawImage(
+        this.backgroundImage,
+        offsetX,
+        offsetY,
+        drawWidth,
+        drawHeight
+      );
+    } catch (e) {
+      console.error('Error drawing background image:', e);
+    }
+
+    // 恢复透明度
+    this.ctx.globalAlpha = savedAlpha;
+  }}
