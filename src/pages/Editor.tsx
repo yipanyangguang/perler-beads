@@ -6,7 +6,6 @@ import { useProjectStore } from "../store/useProjectStore";
 import { useTheme } from "../hooks/useTheme";
 import html2canvas from "html2canvas";
 import clsx from "clsx";
-import anime from "animejs";
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, writeFile } from '@tauri-apps/plugin-fs';
 import colorData from "../color";
@@ -120,28 +119,9 @@ export default function Editor() {
     };
   }, [grid]);
 
-  // Animation on mount
-  useEffect(() => {
-    anime({
-      targets: '.grid-cell',
-      scale: [0, 1],
-      opacity: [0, 1],
-      delay: anime.stagger(1, { grid: [width, height], from: 'center' }),
-      duration: 400,
-      easing: 'easeOutElastic(1, .8)'
-    });
-  }, []);
-
   const togglePreview = () => {
     const isOpening = !isPreviewMode;
     setIsPreviewMode(isOpening);
-    
-    anime({
-      targets: '#flipper',
-      rotateY: isOpening ? 180 : 0,
-      duration: 1000,
-      easing: 'easeInOutCubic'
-    });
   };
 
   const cellSize = 20 * zoom;
@@ -149,14 +129,6 @@ export default function Editor() {
   const handleCellClick = (x: number, y: number) => {
     if (tool === "brush" || tool === "select") {
       setCellColor(x, y, selectedColor);
-      
-      // Animate click
-      anime({
-        targets: `#cell-${x}-${y}`,
-        scale: [0.8, 1],
-        duration: 200,
-        easing: 'easeOutQuad'
-      });
 
       if (isSymmetric) {
         let mirrorX = x;
@@ -169,12 +141,6 @@ export default function Editor() {
         
         if (mirrorX !== x || mirrorY !== y) {
           setCellColor(mirrorX, mirrorY, selectedColor);
-          anime({
-            targets: `#cell-${mirrorX}-${mirrorY}`,
-            scale: [0.8, 1],
-            duration: 200,
-            easing: 'easeOutQuad'
-          });
         }
       }
     } else if (tool === "eraser") {
