@@ -1,7 +1,8 @@
-import { ArrowLeft, ArrowUp, ArrowRight, ArrowDown, Download, Eraser, MousePointer2, Paintbrush, Save, ZoomIn, ZoomOut, ChevronDown, Eye, EyeOff, X, Grid3X3, Trash2, Plus, Loader2, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowUp, ArrowRight, ArrowDown, Eraser, MousePointer2, Paintbrush, Save, ZoomIn, ZoomOut, ChevronDown, Eye, EyeOff, X, Grid3X3, Trash2, Plus, Loader2, Wand2, Moon, Sun, FlipHorizontal, FlipVertical, Copy, Undo, Redo, MoreHorizontal, Image as LucideImage, List, LayoutGrid } from "lucide-react";
 import { useRef, useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProjectStore } from "../store/useProjectStore";
+import { useTheme } from "../hooks/useTheme";
 import html2canvas from "html2canvas";
 import clsx from "clsx";
 import anime from "animejs";
@@ -9,19 +10,26 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, writeFile } from '@tauri-apps/plugin-fs';
 import colorData from "../color";
 import { getColorId, getContrastColor } from "../utils/colorUtils";
+import iconSvg from '../assets/logo.png';
 
 export default function Editor() {
   const navigate = useNavigate();
-  const { grid, width, height, name, setCellColor, moveGrid, addRow, deleteRow, addColumn, deleteColumn } = useProjectStore();
+  const { grid, width, height, name, setCellColor, moveGrid, addRow, deleteRow, addColumn, deleteColumn, replaceColor, undo, redo, undoStack, redoStack } = useProjectStore();
+  const { theme, toggleTheme } = useTheme();
   
   const [selectedColor, setSelectedColor] = useState<string | null>("#000000");
   const [tool, setTool] = useState<"brush" | "select" | "eraser">("select");
+  const [isSymmetric, setIsSymmetric] = useState(false);
+  const [symmetryAxis, setSymmetryAxis] = useState<'x' | 'y'>('x');
   const [isDragging, setIsDragging] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [isGridSettingsOpen, setIsGridSettingsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportSettingsOpen, setIsExportSettingsOpen] = useState(false);
+  const [exportScale, setExportScale] = useState(3);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isTextLayout, setIsTextLayout] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [activeCategory, setActiveCategory] = useState<string>(Object.keys(colorData)[0]);
@@ -41,6 +49,11 @@ export default function Editor() {
     index: number,
     x: number,
     y: number
+  } | null>(null);
+
+  const [confirmReplace, setConfirmReplace] = useState<{
+    oldColor: string;
+    newColor: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -149,8 +162,40 @@ export default function Editor() {
         duration: 200,
         easing: 'easeOutQuad'
       });
+
+      if (isSymmetric) {
+        let mirrorX = x;
+        let mirrorY = y;
+        if (symmetryAxis === 'x') {
+           mirrorX = width - 1 - x;
+        } else {
+           mirrorY = height - 1 - y;
+        }
+        
+        if (mirrorX !== x || mirrorY !== y) {
+          setCellColor(mirrorX, mirrorY, selectedColor);
+          anime({
+            targets: `#cell-${mirrorX}-${mirrorY}`,
+            scale: [0.8, 1],
+            duration: 200,
+            easing: 'easeOutQuad'
+          });
+        }
+      }
     } else if (tool === "eraser") {
       setCellColor(x, y, null);
+      if (isSymmetric) {
+        let mirrorX = x;
+        let mirrorY = y;
+        if (symmetryAxis === 'x') {
+           mirrorX = width - 1 - x;
+        } else {
+           mirrorY = height - 1 - y;
+        }
+        if (mirrorX !== x || mirrorY !== y) {
+          setCellColor(mirrorX, mirrorY, null);
+        }
+      }
     }
   };
 
@@ -159,8 +204,22 @@ export default function Editor() {
     if (isDragging) {
       if (tool === "brush") {
         setCellColor(x, y, selectedColor);
+        if (isSymmetric) {
+          let mirrorX = x;
+          let mirrorY = y;
+          if (symmetryAxis === 'x') mirrorX = width - 1 - x;
+          else mirrorY = height - 1 - y;
+          if (mirrorX !== x || mirrorY !== y) setCellColor(mirrorX, mirrorY, selectedColor);
+        }
       } else if (tool === "eraser") {
         setCellColor(x, y, null);
+        if (isSymmetric) {
+          let mirrorX = x;
+          let mirrorY = y;
+          if (symmetryAxis === 'x') mirrorX = width - 1 - x;
+          else mirrorY = height - 1 - y;
+          if (mirrorX !== x || mirrorY !== y) setCellColor(mirrorX, mirrorY, null);
+        }
       }
     }
   };
@@ -186,9 +245,23 @@ export default function Editor() {
       }
 
       const state = useProjectStore.getState();
-      // Exclude markedCells from the saved file
-      const { markedCells, ...stateToSave } = state;
-      const data = JSON.stringify(stateToSave, null, 2);
+      // Exclude markedCells, history, undoStack, redoStack from the saved file
+      const { markedCells, history, undoStack, redoStack, grid, ...rest } = state;
+
+      // Convert grid colors from hex to ID
+      const gridWithIds = grid.map(row => 
+        row.map(cell => ({
+          ...cell,
+          color: cell.color ? (getColorId(cell.color) || cell.color) : null
+        }))
+      );
+
+      const finalState = {
+        ...rest,
+        grid: gridWithIds
+      };
+
+      const data = JSON.stringify(finalState, null, 2);
       await writeTextFile(filePath, data);
       
       // Simple feedback
@@ -206,9 +279,15 @@ export default function Editor() {
     const exportTarget = document.getElementById('export-container');
     if (!exportTarget) return;
     
+    // Save current layout state
+    const originalLayout = isTextLayout;
+    
     try {
       setIsExporting(true);
       setExportProgress(0);
+      
+      // Force text layout for export
+      setIsTextLayout(true);
       
       // Fake progress animation
       const progressInterval = setInterval(() => {
@@ -218,12 +297,12 @@ export default function Editor() {
         });
       }, 200);
       
-      // Wait for a moment to ensure UI is ready
+      // Wait for a moment to ensure UI is ready and layout is updated
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const canvas = await html2canvas(exportTarget, {
         backgroundColor: null, // Transparent background if possible
-        scale: 2, // Higher quality
+        scale: exportScale, // Use selected scale
         useCORS: true,
         logging: false,
         onclone: (clonedDoc) => {
@@ -253,6 +332,7 @@ export default function Editor() {
       if (!filePath) {
         setIsExporting(false);
         setExportProgress(0);
+        setIsTextLayout(originalLayout); // Restore layout
         return;
       }
 
@@ -261,6 +341,7 @@ export default function Editor() {
         if (!blob) {
           setIsExporting(false);
           setExportProgress(0);
+          setIsTextLayout(originalLayout); // Restore layout
           alert('导出失败：无法生成图片数据');
           return;
         }
@@ -276,6 +357,7 @@ export default function Editor() {
         } finally {
           setIsExporting(false);
           setExportProgress(0);
+          setIsTextLayout(originalLayout); // Restore layout
         }
       }, 'image/png');
       
@@ -284,6 +366,7 @@ export default function Editor() {
       alert('导出失败，请重试');
       setIsExporting(false);
       setExportProgress(0);
+      setIsTextLayout(originalLayout); // Restore layout
     }
   };
 
@@ -311,6 +394,80 @@ export default function Editor() {
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors mr-2"
+            title={theme === 'dark' ? '切换亮色模式' : '切换深色模式'}
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+
+          {/* Symmetry Controls */}
+          <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 mr-2">
+            <button
+              onClick={() => setIsSymmetric(!isSymmetric)}
+              className={clsx(
+                "p-2 rounded-md transition-colors",
+                isSymmetric ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+              )}
+              title="对称模式"
+            >
+              <Copy size={18} />
+            </button>
+            {isSymmetric && (
+              <>
+                <div className="w-px h-4 bg-zinc-300 dark:bg-zinc-600 mx-1" />
+                <button
+                  onClick={() => setSymmetryAxis('x')}
+                  className={clsx(
+                    "p-2 rounded-md transition-colors",
+                    symmetryAxis === 'x' ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                  )}
+                  title="左右对称"
+                >
+                  <FlipHorizontal size={18} />
+                </button>
+                <button
+                  onClick={() => setSymmetryAxis('y')}
+                  className={clsx(
+                    "p-2 rounded-md transition-colors",
+                    symmetryAxis === 'y' ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                  )}
+                  title="上下对称"
+                >
+                  <FlipVertical size={18} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Undo/Redo */}
+          <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 mr-2">
+            <button
+              onClick={undo}
+              disabled={undoStack.length === 0}
+              className={clsx(
+                "p-2 rounded-md transition-colors",
+                undoStack.length === 0 ? "text-zinc-300 dark:text-zinc-600 cursor-not-allowed" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              )}
+              title="撤销"
+            >
+              <Undo size={18} />
+            </button>
+            <button
+              onClick={redo}
+              disabled={redoStack.length === 0}
+              className={clsx(
+                "p-2 rounded-md transition-colors",
+                redoStack.length === 0 ? "text-zinc-300 dark:text-zinc-600 cursor-not-allowed" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              )}
+              title="重做"
+            >
+              <Redo size={18} />
+            </button>
+          </div>
+
           {/* Zoom Controls */}
           <div className="flex items-center gap-2 mr-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1">
             <ZoomOut size={16} className="text-zinc-500" />
@@ -481,9 +638,12 @@ export default function Editor() {
               className="flex items-center gap-2 px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
               <div 
-                className="w-6 h-6 rounded-full border border-zinc-300 dark:border-zinc-600 flex items-center justify-center text-[10px] font-bold overflow-hidden"
+                className={clsx(
+                  "w-6 h-6 rounded-full border border-zinc-300 dark:border-zinc-600 flex items-center justify-center text-[10px] font-bold overflow-hidden",
+                  selectedColor === '#FDFBFF' && "frosted-bead"
+                )}
                 style={{ 
-                  backgroundColor: selectedColor || 'transparent',
+                  backgroundColor: selectedColor === '#FDFBFF' ? undefined : (selectedColor || 'transparent'),
                   color: selectedColor ? getContrastColor(selectedColor) : undefined
                 }}
               >
@@ -525,8 +685,11 @@ export default function Editor() {
                     {Object.entries(currentCategoryColors).map(([id, color]) => (
                       <button
                         key={id}
-                        className="group relative w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-600 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-800 flex items-center justify-center"
-                        style={{ backgroundColor: color }}
+                        className={clsx(
+                          "group relative w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-600 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-800 flex items-center justify-center",
+                          color === '#FDFBFF' && "frosted-bead"
+                        )}
+                        style={{ backgroundColor: color === '#FDFBFF' ? undefined : color }}
                         onClick={() => {
                           setSelectedColor(color);
                           setIsColorPickerOpen(false);
@@ -575,8 +738,9 @@ export default function Editor() {
           >
             {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
           </button>
+          
           <button 
-            onClick={handleExportImage} 
+            onClick={() => setIsExportSettingsOpen(true)}
             disabled={isExporting}
             className={clsx(
               "p-2 rounded-lg transition-colors",
@@ -586,8 +750,9 @@ export default function Editor() {
             )}
             title="导出图片"
           >
-            {isExporting ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
+            {isExporting ? <Loader2 size={20} className="animate-spin" /> : <LucideImage size={20} />}
           </button>
+
           <button 
             onClick={() => navigate("/marking")}
             className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
@@ -703,6 +868,25 @@ export default function Editor() {
                     const isCenter = showCenterMark && x === centerX && y === centerY;
                     const hasVGuide = vGuides.has(x);
                     const hasHGuide = hGuides.has(y);
+                    const isFrosted = cell.color === '#FDFBFF';
+                    
+                    // Symmetry Line Logic
+                    let symmetryClass = "";
+                    if (isSymmetric) {
+                      if (symmetryAxis === 'x') {
+                        if (width % 2 === 0) {
+                          if (x === width / 2 - 1) symmetryClass = "!border-r-2 !border-r-purple-500 z-20";
+                        } else {
+                          if (x === Math.floor(width / 2)) symmetryClass = "after:content-[''] after:absolute after:inset-0 after:bg-purple-500/10 after:pointer-events-none";
+                        }
+                      } else {
+                        if (height % 2 === 0) {
+                          if (y === height / 2 - 1) symmetryClass = "!border-b-2 !border-b-purple-500 z-20";
+                        } else {
+                          if (y === Math.floor(height / 2)) symmetryClass = "after:content-[''] after:absolute after:inset-0 after:bg-purple-500/10 after:pointer-events-none";
+                        }
+                      }
+                    }
 
                     return (
                       <div
@@ -711,10 +895,12 @@ export default function Editor() {
                         className={clsx(
                           "grid-cell bg-white dark:bg-zinc-900 hover:brightness-95 dark:hover:brightness-110 cursor-pointer transition-colors duration-75 relative flex items-center justify-center",
                           hasVGuide && "!border-r-2 !border-r-blue-400 dark:!border-r-blue-500 z-10",
-                          hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10"
+                          hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10",
+                          symmetryClass,
+                          isFrosted && "frosted-bead"
                         )}
                         style={{ 
-                          backgroundColor: cell.color || undefined,
+                          backgroundColor: isFrosted ? undefined : (cell.color || undefined),
                           width: `${cellSize}px`,
                           height: `${cellSize}px`
                         }}
@@ -754,41 +940,104 @@ export default function Editor() {
             {/* Bottom Stats Area */}
             <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-sm text-zinc-900 dark:text-white">颜色统计清单</h3>
+                <div className="flex items-center gap-4">
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-white">颜色统计清单</h3>
+                  <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5">
+                    <button
+                      onClick={() => setIsTextLayout(false)}
+                      className={clsx(
+                        "p-1.5 rounded-md transition-colors",
+                        !isTextLayout 
+                          ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm" 
+                          : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                      )}
+                      title="网格视图"
+                    >
+                      <LayoutGrid size={14} />
+                    </button>
+                    <button
+                      onClick={() => setIsTextLayout(true)}
+                      className={clsx(
+                        "p-1.5 rounded-md transition-colors",
+                        isTextLayout 
+                          ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm" 
+                          : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                      )}
+                      title="文本视图"
+                    >
+                      <List size={14} />
+                    </button>
+                  </div>
+                </div>
                 <span className="text-xs text-zinc-500">总计: {colorStats.total} 颗</span>
               </div>
               
-              <div className="grid grid-cols-4 gap-4 export-stats-grid">
-                {colorStats.colors.map(([color, count]) => (
-                  <div 
-                    key={color} 
-                    onClick={() => setSelectedColor(color)}
-                    className="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                  >
-                    <div 
-                      className="w-6 h-6 rounded-full border border-zinc-200 dark:border-zinc-600 shadow-sm flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: color }}
-                    >
-                      <span 
-                        className="text-[8px] font-bold"
-                        style={{ color: getContrastColor(color) }}
-                      >
-                        {getColorId(color)}
-                      </span>
+              {isTextLayout ? (
+                <div className="grid grid-cols-4 gap-x-8 gap-y-2 text-sm font-mono text-zinc-700 dark:text-zinc-300">
+                  {colorStats.colors.map(([color, count]) => (
+                    <div key={color} className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-1">
+                      <span className="font-bold">{getColorId(color)}</span>
+                      <span>{count}</span>
                     </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-xs font-bold whitespace-nowrap">{getColorId(color)}</span>
-                        <span className="text-xs font-mono text-zinc-500">{count}</span>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 gap-4 export-stats-grid">
+                  {colorStats.colors.map(([color, count]) => (
+                    <div 
+                      key={color} 
+                      onClick={() => setSelectedColor(color)}
+                      className="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
+                    >
+                      <div 
+                        className={clsx(
+                          "w-6 h-6 rounded-full border border-zinc-200 dark:border-zinc-600 shadow-sm flex items-center justify-center flex-shrink-0",
+                          color === '#FDFBFF' && "frosted-bead"
+                        )}
+                        style={{ backgroundColor: color === '#FDFBFF' ? undefined : color }}
+                      >
+                        <span 
+                          className="text-[8px] font-bold"
+                          style={{ color: getContrastColor(color) }}
+                        >
+                          {getColorId(color)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-xs font-bold whitespace-nowrap">{getColorId(color)}</span>
+                          <span className="text-xs font-mono text-zinc-500">{count}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmReplace({
+                              oldColor: color,
+                              newColor: selectedColor
+                            });
+                          }}
+                          className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-all"
+                          title="替换颜色"
+                        >
+                          <MoreHorizontal size={14} className="text-zinc-500" />
+                        </button>
                       </div>
                     </div>
-                  </div>
-                ))}
-                {colorStats.colors.length === 0 && (
-                  <div className="col-span-4 text-center py-4 text-xs text-zinc-400">
-                    暂无颜色数据
-                  </div>
-                )}
+                  ))}
+                </div>
+              )}
+              
+              {colorStats.colors.length === 0 && (
+                <div className="text-center py-4 text-xs text-zinc-400">
+                  暂无颜色数据
+                </div>
+              )}
+
+              <div className="mt-6 flex items-center justify-center gap-2 text-xs text-zinc-400">
+                <img src={iconSvg} width="44" />
+                <span>perler-beads</span>
               </div>
             </div>
           </div>
@@ -827,8 +1076,9 @@ export default function Editor() {
                     row.map((cell) => (
                       <div
                         key={`preview-${cell.id}`}
+                        className={clsx(cell.color === '#FDFBFF' && "frosted-bead")}
                         style={{ 
-                          backgroundColor: cell.color || 'transparent',
+                          backgroundColor: cell.color === '#FDFBFF' ? undefined : (cell.color || 'transparent'),
                           width: `${cellSize}px`,
                           height: `${cellSize}px`,
                           borderRadius: '0',
@@ -913,6 +1163,79 @@ export default function Editor() {
               />
             </div>
             <p className="text-xs text-zinc-400 text-center">正在生成高清网格与统计数据</p>
+          </div>
+        </div>
+      )}
+
+      {isExportSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 border border-zinc-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-white">导出图片设置</h3>
+            
+            <div className="mb-6">
+              <div className="flex justify-between mb-2">
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">清晰度 (缩放倍数)</span>
+                <span className="text-sm font-bold text-zinc-900 dark:text-white">{exportScale}x</span>
+              </div>
+              <input 
+                type="range" 
+                min="1" 
+                max="10" 
+                step="1" 
+                value={exportScale} 
+                onChange={(e) => setExportScale(Number(e.target.value))}
+                className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <p className="text-xs text-zinc-400 mt-2">
+                倍数越高，图片越清晰，但文件体积也越大。建议 3x-5x。
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setIsExportSettingsOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  setIsExportSettingsOpen(false);
+                  handleExportImage();
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+              >
+                确定导出
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmReplace && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 border border-zinc-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold mb-4">确认替换颜色</h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6">
+              确定要将所有 <span className="font-bold inline-block px-1 rounded border border-zinc-200 dark:border-zinc-700" style={{ backgroundColor: confirmReplace.oldColor === '#FDFBFF' ? undefined : confirmReplace.oldColor, color: getContrastColor(confirmReplace.oldColor) }}>{getColorId(confirmReplace.oldColor)}</span> 颜色的珠子替换为 <span className="font-bold inline-block px-1 rounded border border-zinc-200 dark:border-zinc-700" style={{ backgroundColor: confirmReplace.newColor && confirmReplace.newColor !== '#FDFBFF' ? confirmReplace.newColor : undefined, color: confirmReplace.newColor ? getContrastColor(confirmReplace.newColor) : 'inherit' }}>{confirmReplace.newColor ? getColorId(confirmReplace.newColor) : '透明/橡皮擦'}</span> 吗？
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmReplace(null)}
+                className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  replaceColor(confirmReplace.oldColor, confirmReplace.newColor);
+                  setConfirmReplace(null);
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+              >
+                确定替换
+              </button>
+            </div>
           </div>
         </div>
       )}

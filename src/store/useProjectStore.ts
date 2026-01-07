@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getHexFromId } from '../utils/colorUtils';
 
 export interface CellData {
   id: string;
@@ -24,14 +25,26 @@ export interface HistoryItem {
   lastOpened: number;
 }
 
+interface UndoState {
+  grid: CellData[][];
+  width: number;
+  height: number;
+}
+
 interface ProjectStore extends ProjectState {
   history: HistoryItem[];
+  undoStack: UndoState[];
+  redoStack: UndoState[];
   // Actions
   createProject: (width: number, height: number, name?: string) => void;
   loadProject: (project: ProjectState) => void;
+  undo: () => void;
+  redo: () => void;
   setCellColor: (x: number, y: number, color: string | null) => void;
   moveGrid: (direction: 'up' | 'down' | 'left' | 'right') => void;
   toggleMarkCell: (id: string) => void;
+  setMarkCell: (id: string, marked: boolean) => void;
+  markAllColor: (color: string) => void;
   resetMarks: () => void;
   updateProjectName: (name: string) => void;
   addToHistory: (name: string, path: string) => void;
@@ -40,6 +53,7 @@ interface ProjectStore extends ProjectState {
   deleteRow: (index: number) => void;
   addColumn: (index: number) => void;
   deleteColumn: (index: number) => void;
+  replaceColor: (oldColor: string, newColor: string | null) => void;
 }
 
 const generateGrid = (width: number, height: number): CellData[][] => {
@@ -62,14 +76,16 @@ const generateGrid = (width: number, height: number): CellData[][] => {
 export const useProjectStore = create<ProjectStore>()(
   persist(
     (set) => ({
-      id: 'default',
-      name: 'Untitled Project',
-      width: 20,
-      height: 20,
-      grid: generateGrid(20, 20),
-      markedCells: {},
-      lastModified: Date.now(),
+      undoStack: [],
+      redoStack: [],
       history: [],
+      id: '',
+      name: '',
+      width: 0,
+      height: 0,
+      grid: [],
+      markedCells: {},
+      lastModified: 0,
 
       createProject: (width, height, name = 'Untitled Project') => {
         set({
@@ -80,24 +96,97 @@ export const useProjectStore = create<ProjectStore>()(
           grid: generateGrid(width, height),
           markedCells: {},
           lastModified: Date.now(),
+          undoStack: [],
+          redoStack: [],
         });
       },
 
       loadProject: (project) => {
-        set({ ...project, lastModified: Date.now() });
+        // Convert grid colors from ID to hex if necessary
+        const gridWithHex = project.grid.map(row => 
+          row.map(cell => ({
+            ...cell,
+            color: cell.color ? (getHexFromId(cell.color) || cell.color) : null
+          }))
+        );
+
+        // Safely extract only ProjectState properties, ignoring history/undoStack/redoStack if present in input
+        const { history, undoStack, redoStack, grid, ...rest } = project as any;
+
+        set({ 
+          ...rest, 
+          grid: gridWithHex,
+          lastModified: Date.now(), 
+          undoStack: [], 
+          redoStack: [] 
+        });
       },
+
+      undo: () => set((state) => {
+        if (state.undoStack.length === 0) return state;
+        const previous = state.undoStack[state.undoStack.length - 1];
+        const newUndoStack = state.undoStack.slice(0, -1);
+        
+        const current: UndoState = {
+          grid: state.grid,
+          width: state.width,
+          height: state.height
+        };
+        
+        return {
+          ...previous,
+          undoStack: newUndoStack,
+          redoStack: [current, ...state.redoStack],
+          lastModified: Date.now()
+        };
+      }),
+
+      redo: () => set((state) => {
+        if (state.redoStack.length === 0) return state;
+        const next = state.redoStack[0];
+        const newRedoStack = state.redoStack.slice(1);
+        
+        const current: UndoState = {
+          grid: state.grid,
+          width: state.width,
+          height: state.height
+        };
+
+        return {
+          ...next,
+          undoStack: [...state.undoStack, current],
+          redoStack: newRedoStack,
+          lastModified: Date.now()
+        };
+      }),
 
       setCellColor: (x, y, color) =>
         set((state) => {
+          // Push to undo stack
+          const current: UndoState = {
+            grid: state.grid,
+            width: state.width,
+            height: state.height
+          };
+          const newUndoStack = [...state.undoStack, current].slice(-5); // Keep last 5
+
           const newGrid = [...state.grid];
           // Create a shallow copy of the row to avoid mutation
           newGrid[y] = [...newGrid[y]];
           newGrid[y][x] = { ...newGrid[y][x], color };
-          return { grid: newGrid, lastModified: Date.now() };
+          return { grid: newGrid, lastModified: Date.now(), undoStack: newUndoStack, redoStack: [] };
         }),
 
       moveGrid: (direction) =>
         set((state) => {
+          // Push to undo stack
+          const current: UndoState = {
+            grid: state.grid,
+            width: state.width,
+            height: state.height
+          };
+          const newUndoStack = [...state.undoStack, current].slice(-5);
+
           const { width, height, grid } = state;
           const newGrid = grid.map(row => row.map(cell => ({ ...cell }))); // Deep copy for safety
 
@@ -135,10 +224,18 @@ export const useProjectStore = create<ProjectStore>()(
             }
           }
 
-          return { grid: newGrid, lastModified: Date.now() };
+          return { grid: newGrid, lastModified: Date.now(), undoStack: newUndoStack, redoStack: [] };
         }),
 
       addRow: (index) => set((state) => {
+        // Push to undo stack
+        const current: UndoState = {
+          grid: state.grid,
+          width: state.width,
+          height: state.height
+        };
+        const newUndoStack = [...state.undoStack, current].slice(-5);
+
         const newGrid = [...state.grid];
         const newRow: CellData[] = [];
         for (let x = 0; x < state.width; x++) {
@@ -178,12 +275,23 @@ export const useProjectStore = create<ProjectStore>()(
           grid: updatedGrid,
           height: state.height + 1,
           markedCells: newMarks,
-          lastModified: Date.now()
+          lastModified: Date.now(),
+          undoStack: newUndoStack,
+          redoStack: []
         };
       }),
 
       deleteRow: (index) => set((state) => {
         if (state.height <= 1) return state;
+        
+        // Push to undo stack
+        const current: UndoState = {
+          grid: state.grid,
+          width: state.width,
+          height: state.height
+        };
+        const newUndoStack = [...state.undoStack, current].slice(-5);
+
         const newGrid = [...state.grid];
         newGrid.splice(index, 1);
 
@@ -215,11 +323,21 @@ export const useProjectStore = create<ProjectStore>()(
           grid: updatedGrid,
           height: state.height - 1,
           markedCells: newMarks,
-          lastModified: Date.now()
+          lastModified: Date.now(),
+          undoStack: newUndoStack,
+          redoStack: []
         };
       }),
 
       addColumn: (index) => set((state) => {
+        // Push to undo stack
+        const current: UndoState = {
+          grid: state.grid,
+          width: state.width,
+          height: state.height
+        };
+        const newUndoStack = [...state.undoStack, current].slice(-5);
+
         const newGrid = state.grid.map(row => {
           const newRow = [...row];
           newRow.splice(index, 0, {
@@ -258,12 +376,23 @@ export const useProjectStore = create<ProjectStore>()(
           grid: updatedGrid,
           width: state.width + 1,
           markedCells: newMarks,
-          lastModified: Date.now()
+          lastModified: Date.now(),
+          undoStack: newUndoStack,
+          redoStack: []
         };
       }),
 
       deleteColumn: (index) => set((state) => {
         if (state.width <= 1) return state;
+        
+        // Push to undo stack
+        const current: UndoState = {
+          grid: state.grid,
+          width: state.width,
+          height: state.height
+        };
+        const newUndoStack = [...state.undoStack, current].slice(-5);
+
         const newGrid = state.grid.map(row => {
           const newRow = [...row];
           newRow.splice(index, 1);
@@ -298,9 +427,29 @@ export const useProjectStore = create<ProjectStore>()(
           grid: updatedGrid,
           width: state.width - 1,
           markedCells: newMarks,
-          lastModified: Date.now()
+          lastModified: Date.now(),
+          undoStack: newUndoStack,
+          redoStack: []
         };
       }),
+
+      replaceColor: (oldColor, newColor) =>
+        set((state) => {
+          // Push to undo stack
+          const current: UndoState = {
+            grid: state.grid,
+            width: state.width,
+            height: state.height
+          };
+          const newUndoStack = [...state.undoStack, current].slice(-5);
+
+          const newGrid = state.grid.map(row =>
+            row.map(cell =>
+              cell.color === oldColor ? { ...cell, color: newColor } : cell
+            )
+          );
+          return { grid: newGrid, lastModified: Date.now(), undoStack: newUndoStack, redoStack: [] };
+        }),
 
       toggleMarkCell: (id) =>
         set((state) => {
@@ -313,6 +462,28 @@ export const useProjectStore = create<ProjectStore>()(
           return { markedCells: newMarks };
         }),
 
+      setMarkCell: (id, marked) =>
+        set((state) => {
+          const newMarks = { ...state.markedCells };
+          if (marked) {
+            newMarks[id] = true;
+          } else {
+            delete newMarks[id];
+          }
+          return { markedCells: newMarks };
+        }),
+      markAllColor: (color) =>
+        set((state) => {
+          const newMarkedCells = { ...state.markedCells };
+          state.grid.forEach(row => {
+            row.forEach(cell => {
+              if (cell.color === color) {
+                newMarkedCells[cell.id] = true;
+              }
+            });
+          });
+          return { markedCells: newMarkedCells };
+        }),
       resetMarks: () => set({ markedCells: {} }),
       
       updateProjectName: (name) => set({ name }),

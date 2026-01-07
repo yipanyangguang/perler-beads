@@ -1,22 +1,143 @@
-import { ArrowLeft, Check, Eye, EyeOff, Grid3X3, Plus, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
-import { useRef, useState, useMemo, useEffect } from "react";
+import { ArrowLeft, Check, Eye, EyeOff, Grid3X3, Plus, Trash2, X, ZoomIn, ZoomOut, Moon, Sun, CheckSquare, Square, Brush } from "lucide-react";
+import { useRef, useState, useMemo, useCallback, memo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProjectStore } from "../store/useProjectStore";
+import { useProjectStore, CellData } from "../store/useProjectStore";
+import { useTheme } from "../hooks/useTheme";
 import clsx from "clsx";
-import anime from "animejs";
 import { getColorId, getContrastColor } from "../utils/colorUtils";
+
+// Memoized Cell Component to improve performance
+interface MarkingCellProps {
+  cell: CellData;
+  cellSize: number;
+  isMarked: boolean;
+  isCenter: boolean;
+  hasVGuide: boolean;
+  hasHGuide: boolean;
+  showLabels: boolean;
+  zoom: number;
+  isHovered: boolean;
+  isHidden: boolean;
+  onMouseDown: (x: number, y: number) => void;
+  onMouseEnter: (x: number, y: number) => void;
+}
+
+const MarkingCell = memo(({ 
+  cell, 
+  cellSize, 
+  isMarked, 
+  isCenter, 
+  hasVGuide, 
+  hasHGuide, 
+  showLabels, 
+  zoom, 
+  isHovered,
+  isHidden,
+  onMouseDown,
+  onMouseEnter 
+}: MarkingCellProps) => {
+  const isFrosted = cell.color === '#FDFBFF';
+
+  if (isHidden) {
+    return (
+      <div
+        style={{ 
+          width: `${cellSize}px`,
+          height: `${cellSize}px`
+        }}
+        className={clsx(
+          "grid-cell bg-white dark:bg-zinc-900 transition-colors duration-75 relative flex items-center justify-center",
+          hasVGuide && "!border-r-2 !border-r-blue-400 dark:!border-r-blue-500 z-10",
+          hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10"
+        )}
+      />
+    );
+  }
+
+  return (
+    <div
+      id={`cell-${cell.x}-${cell.y}`}
+      className={clsx(
+        "grid-cell bg-white dark:bg-zinc-900 hover:brightness-95 dark:hover:brightness-110 cursor-pointer transition-colors duration-75 relative flex items-center justify-center",
+        hasVGuide && "!border-r-2 !border-r-blue-400 dark:!border-r-blue-500 z-10",
+        hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10",
+        isMarked && "after:content-[''] after:absolute after:inset-0 after:bg-black/10 dark:after:bg-white/10",
+        isFrosted && "frosted-bead"
+      )}
+      style={{ 
+        backgroundColor: isFrosted ? undefined : (cell.color || undefined),
+        width: `${cellSize}px`,
+        height: `${cellSize}px`
+      }}
+      onMouseDown={() => onMouseDown(cell.x, cell.y)}
+      onMouseEnter={() => onMouseEnter(cell.x, cell.y)}
+    >
+      {/* Marked Indicator - Adjusted opacity and color */}
+      {isMarked && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+          <Check size={cellSize * 0.8} className="text-green-500/80 drop-shadow-sm" strokeWidth={2.5} />
+        </div>
+      )}
+
+      {/* Center Mark */}
+      {isCenter && !cell.color && !isMarked && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <X size={cellSize * 0.6} className="text-zinc-300 dark:text-zinc-600 opacity-50" strokeWidth={1.5} />
+        </div>
+      )}
+
+      {/* Hover Coordinates */}
+      {isHovered && !cell.color && !isCenter && (
+        <span className="pointer-events-none text-[8px] text-zinc-400 select-none">
+          {cell.x+1},{cell.y+1}
+        </span>
+      )}
+      
+      {/* Color Label */}
+      {showLabels && cell.color && zoom >= 0.8 && (
+        <span 
+          className="pointer-events-none text-[8px] font-bold select-none"
+          style={{ color: getContrastColor(cell.color) }}
+        >
+          {getColorId(cell.color)}
+        </span>
+      )}
+    </div>
+  );
+}, (prev, next) => {
+  return (
+    prev.cell === next.cell &&
+    prev.cellSize === next.cellSize &&
+    prev.isMarked === next.isMarked &&
+    prev.isCenter === next.isCenter &&
+    prev.hasVGuide === next.hasVGuide &&
+    prev.hasHGuide === next.hasHGuide &&
+    prev.showLabels === next.showLabels &&
+    prev.zoom === next.zoom &&
+    prev.isHovered === next.isHovered &&
+    prev.isHidden === next.isHidden &&
+    prev.onMouseDown === next.onMouseDown &&
+    prev.onMouseEnter === next.onMouseEnter
+  );
+});
 
 export default function Marking() {
   const navigate = useNavigate();
-  const { grid, width, height, name, markedCells, toggleMarkCell, resetMarks } = useProjectStore();
+  const { grid, width, height, name, markedCells, toggleMarkCell, setMarkCell, markAllColor, resetMarks } = useProjectStore();
+  const { theme, toggleTheme } = useTheme();
   
   const [zoom, setZoom] = useState(1);
   const [showLabels, setShowLabels] = useState(false);
+  const [isBrushMode, setIsBrushMode] = useState(false);
+  const isDraggingRef = useRef(false);
+  const brushTargetStateRef = useRef<boolean | null>(null);
   const [showCenterMark, setShowCenterMark] = useState(true);
   const [hGuides, setHGuides] = useState<Set<number>>(new Set());
   const [vGuides, setVGuides] = useState<Set<number>>(new Set());
   const [hoveredCell, setHoveredCell] = useState<{x: number, y: number} | null>(null);
   const [isGridSettingsOpen, setIsGridSettingsOpen] = useState(false);
+  const [hiddenColors, setHiddenColors] = useState<Set<string>>(new Set());
+  const [confirmMarkAll, setConfirmMarkAll] = useState<string | null>(null);
   
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -79,46 +200,74 @@ export default function Marking() {
     };
   }, [grid]);
 
-  // Animation on mount
-  useEffect(() => {
-    anime({
-      targets: '.grid-cell',
-      scale: [0, 1],
-      opacity: [0, 1],
-      delay: anime.stagger(1, { grid: [width, height], from: 'center' }),
-      duration: 400,
-      easing: 'easeOutElastic(1, .8)'
-    });
-  }, []);
-
   const cellSize = 20 * zoom;
 
-  const handleCellClick = (x: number, y: number) => {
+  const handleCellClick = useCallback((x: number, y: number) => {
     const cellId = `${x}-${y}`;
-    toggleMarkCell(cellId);
-    
-    // Animate click
-    anime({
-      targets: `#cell-${x}-${y}`,
-      scale: [0.8, 1],
-      duration: 200,
-      easing: 'easeOutQuad'
-    });
-  };
+    if (isBrushMode) {
+      // Use getState() to avoid dependency on markedCells
+      const currentMarkedCells = useProjectStore.getState().markedCells;
+      const isCurrentlyMarked = !!currentMarkedCells[cellId];
+      const targetState = !isCurrentlyMarked;
+      brushTargetStateRef.current = targetState;
+      isDraggingRef.current = true;
+      setMarkCell(cellId, targetState);
+    } else {
+      toggleMarkCell(cellId);
+    }
+  }, [isBrushMode, toggleMarkCell, setMarkCell]);
 
-  const handleMouseEnter = (x: number, y: number) => {
+  const handleMouseEnter = useCallback((x: number, y: number) => {
     setHoveredCell({ x, y });
-  };
+    if (isBrushMode && isDraggingRef.current && brushTargetStateRef.current !== null) {
+      const cellId = `${x}-${y}`;
+      setMarkCell(cellId, brushTargetStateRef.current);
+    }
+  }, [isBrushMode, setMarkCell]);
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     setHoveredCell(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      brushTargetStateRef.current = null;
+    };
+
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, []);
 
   const handleResetMarks = () => {
     if (confirm('确定要清空所有标记吗？')) {
       resetMarks();
     }
   };
+
+  const toggleColorVisibility = (color: string) => {
+    const newHidden = new Set(hiddenColors);
+    if (newHidden.has(color)) {
+      newHidden.delete(color);
+    } else {
+      newHidden.add(color);
+    }
+    setHiddenColors(newHidden);
+  };
+
+  const handleMarkAllColor = (color: string) => {
+    setConfirmMarkAll(color);
+  };
+
+  const executeMarkAllColor = () => {
+    if (confirmMarkAll) {
+      markAllColor(confirmMarkAll);
+      setConfirmMarkAll(null);
+    }
+  };
+
+
+
 
   return (
     <div className="flex flex-col h-screen bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white transition-colors duration-300">
@@ -140,6 +289,15 @@ export default function Marking() {
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors mr-2"
+            title={theme === 'dark' ? '切换亮色模式' : '切换深色模式'}
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+
           {/* Zoom Controls */}
           <div className="flex items-center gap-2 mr-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1">
             <ZoomOut size={16} className="text-zinc-500" />
@@ -155,6 +313,20 @@ export default function Marking() {
             <ZoomIn size={16} className="text-zinc-500" />
             <span className="text-xs w-8 text-center">{Math.round(zoom * 100)}%</span>
           </div>
+
+          {/* Brush Mode Toggle */}
+          <button
+            onClick={() => setIsBrushMode(!isBrushMode)}
+            className={clsx(
+              "p-2 rounded-lg transition-colors mr-1",
+              isBrushMode 
+                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" 
+                : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
+            )}
+            title="刷子模式"
+          >
+            <Brush size={20} />
+          </button>
 
           {/* Label Toggle */}
           <button
@@ -248,7 +420,7 @@ export default function Marking() {
       <main className="flex-1 overflow-auto bg-zinc-100 dark:bg-zinc-950 transition-colors duration-300">
         <div className="min-w-full min-h-full flex flex-col items-center p-12">
           {/* Export Container: Includes Grid, Rulers, and Stats */}
-          <div className="bg-white dark:bg-zinc-900 p-8 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 transition-colors duration-300 flex flex-col gap-8">
+          <div className="export-container bg-white dark:bg-zinc-900 p-8 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 transition-colors duration-300 flex flex-col gap-8">
             
             {/* Grid Area */}
             <div className="grid" style={{ 
@@ -321,57 +493,25 @@ export default function Marking() {
                     const isCenter = showCenterMark && x === centerX && y === centerY;
                     const hasVGuide = vGuides.has(x);
                     const hasHGuide = hGuides.has(y);
-                    const isMarked = markedCells[cell.id];
+                    const isMarked = !!markedCells[cell.id];
+                    const isHidden = cell.color ? hiddenColors.has(cell.color) : false;
 
                     return (
-                      <div
+                      <MarkingCell
                         key={cell.id}
-                        id={`cell-${x}-${y}`}
-                        className={clsx(
-                          "grid-cell bg-white dark:bg-zinc-900 hover:brightness-95 dark:hover:brightness-110 cursor-pointer transition-colors duration-75 relative flex items-center justify-center",
-                          hasVGuide && "!border-r-2 !border-r-blue-400 dark:!border-r-blue-500 z-10",
-                          hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10",
-                          isMarked && "after:content-[''] after:absolute after:inset-0 after:bg-black/20 dark:after:bg-white/20"
-                        )}
-                        style={{ 
-                          backgroundColor: cell.color || undefined,
-                          width: `${cellSize}px`,
-                          height: `${cellSize}px`
-                        }}
-                        onMouseDown={() => handleCellClick(x, y)}
-                        onMouseEnter={() => handleMouseEnter(x, y)}
-                      >
-                        {/* Marked Indicator */}
-                        {isMarked && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                            <Check size={cellSize * 0.8} className="text-green-500 drop-shadow-md" strokeWidth={3} />
-                          </div>
-                        )}
-
-                        {/* Center Mark */}
-                        {isCenter && !cell.color && !isMarked && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <X size={cellSize * 0.6} className="text-zinc-300 dark:text-zinc-600 opacity-50" strokeWidth={1.5} />
-                          </div>
-                        )}
-
-                        {/* Hover Coordinates */}
-                        {hoveredCell?.x === x && hoveredCell?.y === y && !cell.color && !isCenter && (
-                          <span className="pointer-events-none text-[8px] text-zinc-400 select-none">
-                            {x+1},{y+1}
-                          </span>
-                        )}
-                        
-                        {/* Color Label */}
-                        {showLabels && cell.color && zoom >= 0.8 && (
-                          <span 
-                            className="pointer-events-none text-[8px] font-bold select-none"
-                            style={{ color: getContrastColor(cell.color) }}
-                          >
-                            {getColorId(cell.color)}
-                          </span>
-                        )}
-                      </div>
+                        cell={cell}
+                        cellSize={cellSize}
+                        isMarked={isMarked}
+                        isCenter={isCenter}
+                        hasVGuide={hasVGuide}
+                        hasHGuide={hasHGuide}
+                        showLabels={showLabels}
+                        zoom={zoom}
+                        isHovered={hoveredCell?.x === x && hoveredCell?.y === y}
+                        isHidden={isHidden}
+                        onMouseDown={handleCellClick}
+                        onMouseEnter={handleMouseEnter}
+                      />
                     );
                   })
                 ))}
@@ -386,30 +526,58 @@ export default function Marking() {
               </div>
               
               <div className="grid grid-cols-4 gap-4 export-stats-grid">
-                {colorStats.colors.map(([color, count]) => (
-                  <div 
-                    key={color} 
-                    className="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 transition-colors"
-                  >
+                {colorStats.colors.map(([color, count]) => {
+                  const isHidden = hiddenColors.has(color);
+                  return (
                     <div 
-                      className="w-6 h-6 rounded-full border border-zinc-200 dark:border-zinc-600 shadow-sm flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: color }}
+                      key={color} 
+                      className={clsx(
+                        "flex items-center gap-2 p-2 rounded border transition-colors h-10",
+                        isHidden 
+                          ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 opacity-60" 
+                          : "bg-zinc-50 dark:bg-zinc-800/50 border-zinc-100 dark:border-zinc-800"
+                      )}
                     >
-                      <span 
-                        className="text-[8px] font-bold"
-                        style={{ color: getContrastColor(color) }}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => toggleColorVisibility(color)}
+                          className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors p-1"
+                          title={isHidden ? "显示该颜色" : "隐藏该颜色"}
+                        >
+                          {isHidden ? <Square size={14} /> : <CheckSquare size={14} />}
+                        </button>
+
+                        <button
+                          onClick={() => handleMarkAllColor(color)}
+                          className="text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1"
+                          title="标记所有同色格子"
+                        >
+                          <Check size={14} />
+                        </button>
+                      </div>
+
+                      <div 
+                        className={clsx(
+                          "w-6 h-6 rounded-full border border-zinc-200 dark:border-zinc-600 shadow-sm flex items-center justify-center flex-shrink-0",
+                          color === '#FDFBFF' && "frosted-bead"
+                        )}
+                        style={{ backgroundColor: color === '#FDFBFF' ? undefined : color }}
                       >
-                        {getColorId(color)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-xs font-bold whitespace-nowrap">{getColorId(color)}</span>
-                        <span className="text-xs font-mono text-zinc-500">{count}</span>
+                        <span 
+                          className="text-[8px] font-bold"
+                          style={{ color: getContrastColor(color) }}
+                        >
+                          {getColorId(color)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex flex-1 items-center justify-between gap-2 min-w-0">
+                        <span className="text-xs font-bold truncate">{getColorId(color)}</span>
+                        <span className="text-xs font-mono text-zinc-500 shrink-0">{count}</span>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {colorStats.colors.length === 0 && (
                   <div className="col-span-4 text-center py-4 text-xs text-zinc-400">
                     暂无颜色数据
@@ -420,6 +588,36 @@ export default function Marking() {
           </div>
         </div>
       </main>
+
+      {/* Confirmation Modal */}
+      {confirmMarkAll && (
+        <>
+          <div 
+            className="fixed inset-0 z-50 bg-black/20 dark:bg-black/50 backdrop-blur-sm"
+            onClick={() => setConfirmMarkAll(null)}
+          />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white dark:bg-zinc-800 p-6 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-80 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold mb-2 text-zinc-900 dark:text-white">确认标记</h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300 mb-6">
+              确定要标记所有 <span className="font-bold text-zinc-900 dark:text-white">{getColorId(confirmMarkAll)}</span> 颜色的格子吗？
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmMarkAll(null)}
+                className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={executeMarkAllColor}
+                className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm"
+              >
+                确认标记
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
