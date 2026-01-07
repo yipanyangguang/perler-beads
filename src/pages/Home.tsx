@@ -4,8 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { useProjectStore } from "../store/useProjectStore";
 import { useTheme } from "../hooks/useTheme";
 import logo from "../assets/logo.svg";
-import { open } from '@tauri-apps/plugin-dialog';
-import { readTextFile } from '@tauri-apps/plugin-fs';
+import {
+  openFileDialog,
+  readFileText,
+  handleFileImport,
+  readFileFromInput,
+  isTauriEnvironment,
+} from "../utils/tauri-compat";
 import clsx from "clsx";
 
 export default function Home() {
@@ -30,20 +35,32 @@ export default function Home() {
 
   const handleImport = async () => {
     try {
-      const selected = await open({
-        multiple: false,
-        filters: [{
-          name: 'JSON Project',
-          extensions: ['json']
-        }]
-      });
+      if (isTauriEnvironment()) {
+        // Tauri 环境：使用文件对话框选择文件
+        const selected = await openFileDialog({
+          multiple: false,
+          filters: [{
+            name: 'JSON Project',
+            extensions: ['json']
+          }]
+        });
 
-      if (selected && typeof selected === 'string') {
-        const content = await readTextFile(selected);
-        const json = JSON.parse(content);
-        loadProject(json);
-        addToHistory(json.name || 'Untitled', selected);
-        navigate("/editor");
+        if (selected && typeof selected === 'string') {
+          const content = await readFileText(selected);
+          const json = JSON.parse(content);
+          loadProject(json);
+          addToHistory(json.name || 'Untitled', selected);
+          navigate("/editor");
+        }
+      } else {
+        // 浏览器环境：使用文件上传处理
+        await handleFileImport(async (file) => {
+          const content = await readFileFromInput(file);
+          const json = JSON.parse(content);
+          loadProject(json);
+          addToHistory(json.name || 'Untitled', file.name);
+          navigate("/editor");
+        });
       }
     } catch (error) {
       console.error("Failed to import project", error);
@@ -53,7 +70,12 @@ export default function Home() {
 
   const handleHistoryClick = async (path: string) => {
     try {
-      const content = await readTextFile(path);
+      if (!isTauriEnvironment()) {
+        alert("浏览器环境下无法访问历史文件。请重新导入。");
+        return;
+      }
+
+      const content = await readFileText(path);
       const json = JSON.parse(content);
       loadProject(json);
       addToHistory(json.name || 'Untitled', path); // Update last opened

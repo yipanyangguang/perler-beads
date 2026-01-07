@@ -6,8 +6,11 @@ import { useProjectStore } from "../store/useProjectStore";
 import { useTheme } from "../hooks/useTheme";
 import html2canvas from "html2canvas";
 import clsx from "clsx";
-import { save } from '@tauri-apps/plugin-dialog';
-import { writeTextFile, writeFile } from '@tauri-apps/plugin-fs';
+import {
+  saveFileDialog,
+  writeFileText,
+  writeFileBinary,
+} from "../utils/tauri-compat";
 import colorData from "../color";
 import { getColorId, getContrastColor } from "../utils/colorUtils";
 import iconSvg from '../assets/logo.png';
@@ -167,7 +170,7 @@ export default function Editor() {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const filePath = await save({
+      const filePath = await saveFileDialog({
         filters: [{
           name: 'JSON Project',
           extensions: ['json']
@@ -198,7 +201,7 @@ export default function Editor() {
       };
 
       const data = JSON.stringify(finalState, null, 2);
-      await writeTextFile(filePath, data);
+      await writeFileText(filePath, data);
       
       // Simple feedback
       alert('保存成功！');
@@ -257,7 +260,7 @@ export default function Editor() {
       clearInterval(progressInterval);
       setExportProgress(100);
       
-      const filePath = await save({
+      const filePath = await saveFileDialog({
         filters: [{
           name: 'Image',
           extensions: ['png']
@@ -285,7 +288,7 @@ export default function Editor() {
         try {
           const arrayBuffer = await blob.arrayBuffer();
           const uint8Array = new Uint8Array(arrayBuffer);
-          await writeFile(filePath, uint8Array);
+          await writeFileBinary(filePath, uint8Array);
           alert('导出成功！');
         } catch (err) {
           console.error(err);
