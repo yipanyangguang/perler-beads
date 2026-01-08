@@ -4,10 +4,11 @@
 
 /**
  * 检测是否在 Tauri 环境中运行
- * 通过检查 __TAURI__ 全局对象
+ * 通过检查 __TAURI__ 全局对象或 __TAURI_INTERNALS__ (Tauri v2)
  */
 export const isTauriEnvironment = (): boolean => {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
+  // @ts-ignore
+  return typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
 };
 
 /**
