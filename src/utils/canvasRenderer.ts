@@ -51,6 +51,7 @@ export class CanvasRenderer {
   private config: RendererConfig;
   private backgroundImage: HTMLImageElement | null = null;
   private backgroundImageUrl: string | null = null;
+  private lastGrid: CellData[][] | null = null;
 
   constructor(canvas: HTMLCanvasElement, config: RendererConfig) {
     const ctx = canvas.getContext('2d');
@@ -88,6 +89,7 @@ export class CanvasRenderer {
    * 渲染整个网格
    */
   render(grid: CellData[][]) {
+    this.lastGrid = grid;
     const colors = COLORS[this.config.theme];
     this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
@@ -114,11 +116,6 @@ export class CanvasRenderer {
     // 绘制对称线
     if (this.config.isSymmetric) {
       this.drawSymmetryLine(colors);
-    }
-
-    // 绘制悬停效果
-    if (this.config.hoveredCell) {
-      this.drawHoverEffect(this.config.hoveredCell, colors);
     }
   }
 
@@ -158,6 +155,43 @@ export class CanvasRenderer {
       this.ctx.lineTo(endX, canvasY);
       this.ctx.stroke();
     }
+  }
+
+  /**
+   * 绘制单个颜色单元格
+   */
+  public drawSingleCell(x: number, y: number, color: string | null) {
+     const cellData: CellData = { x, y, color, id: `${x}-${y}` };
+     const colors = COLORS[this.config.theme];
+     const rect = getCellRect({ x, y }, this.config);
+     
+     // 1. Clear the cell area (including border)
+     // To clear properly including grid lines, we might need to redraw grid lines around this cell
+     // For performance, we just clear the content area first.
+     this.ctx.clearRect(rect.x + 1, rect.y + 1, rect.width - 1, rect.height - 1);
+     
+     // 2. Draw cell background (if any)
+     if (this.config.theme === 'light') {
+        this.ctx.fillStyle = '#ffffff';
+     } else {
+        this.ctx.fillStyle = '#27272a'; 
+     }
+     this.ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 1, rect.height - 1);
+
+     // 3. Draw color
+     if (color) {
+        const isFrosted = color === '#FDFBFF';
+        if (isFrosted) {
+          this.drawFrostedCell(rect);
+        } else {
+          this.ctx.fillStyle = color;
+          this.ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 1, rect.height - 1);
+        }
+
+        if (this.config.showLabels && this.config.cellSize >= 16) {
+          this.drawCellLabel(cellData, rect, colors);
+        }
+     }
   }
 
   /**
@@ -333,26 +367,26 @@ export class CanvasRenderer {
   /**
    * 绘制悬停效果
    */
-  private drawHoverEffect(
-    hoveredCell: { x: number; y: number },
-    colors: typeof COLORS['light']
-  ) {
-    const rect = getCellRect(hoveredCell, this.config);
+  // private drawHoverEffect(
+  //   hoveredCell: { x: number; y: number },
+  //   colors: typeof COLORS['light']
+  // ) {
+  //   const rect = getCellRect(hoveredCell, this.config);
     
-    // 只在边缘画一个框，不填充单元格内部
-    this.ctx.strokeStyle = colors.guideLine;
-    this.ctx.lineWidth = 2;
-    this.ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
+  //   // 只在边缘画一个框，不填充单元格内部
+  //   this.ctx.strokeStyle = colors.guideLine;
+  //   this.ctx.lineWidth = 2;
+  //   this.ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
 
-    // 绘制坐标提示
-    this.ctx.font = '8px monospace';
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'middle';
-    this.ctx.fillStyle = colors.text;
-    const centerX = rect.x + rect.width / 2;
-    const centerY = rect.y + rect.height / 2;
-    this.ctx.fillText(`${hoveredCell.x + 1},${hoveredCell.y + 1}`, centerX, centerY);
-  }
+  //   // 绘制坐标提示
+  //   this.ctx.font = '8px monospace';
+  //   this.ctx.textAlign = 'center';
+  //   this.ctx.textBaseline = 'middle';
+  //   this.ctx.fillStyle = colors.text;
+  //   const centerX = rect.x + rect.width / 2;
+  //   const centerY = rect.y + rect.height / 2;
+  //   this.ctx.fillText(`${hoveredCell.x + 1},${hoveredCell.y + 1}`, centerX, centerY);
+  // }
 
   /**
    * 加载背景图
@@ -362,12 +396,18 @@ export class CanvasRenderer {
     
     if (!imageUrl) {
       this.backgroundImage = null;
+      if (this.lastGrid) {
+        this.render(this.lastGrid);
+      }
       return;
     }
 
     const img = new Image();
     img.onload = () => {
       this.backgroundImage = img;
+      if (this.lastGrid) {
+        this.render(this.lastGrid);
+      }
     };
     img.onerror = () => {
       console.error('Failed to load background image');

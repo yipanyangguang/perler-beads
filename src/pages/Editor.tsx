@@ -1,6 +1,6 @@
 import CanvasGridRenderer from "../components/CanvasGridRenderer";
 import { ArrowLeft, ArrowUp, ArrowRight, ArrowDown, Eraser, MousePointer2, Paintbrush, Save, ZoomIn, ZoomOut, ChevronDown, Eye, EyeOff, Grid3X3, Trash2, Plus, Loader2, Wand2, Moon, Sun, FlipHorizontal, FlipVertical, Copy, Undo, Redo, MoreHorizontal, Image as LucideImage, List, LayoutGrid } from "lucide-react";
-import { useRef, useState, useMemo, useEffect } from "react";
+import { useRef, useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProjectStore } from "../store/useProjectStore";
 import { useTheme } from "../hooks/useTheme";
@@ -17,7 +17,7 @@ import iconSvg from '../assets/logo.png';
 
 export default function Editor() {
   const navigate = useNavigate();
-  const { grid, width, height, name, setCellColor, moveGrid, addRow, deleteRow, addColumn, deleteColumn, replaceColor, undo, redo, undoStack, redoStack, backgroundImageUrl, backgroundImageOpacity, setBackgroundImage, setBackgroundImageOpacity, removeBackgroundImage } = useProjectStore();
+  const { grid, width, height, name, setCellColor, setCellsColors, pushToUndoStack, moveGrid, addRow, deleteRow, addColumn, deleteColumn, replaceColor, undo, redo, undoStack, redoStack, backgroundImageUrl, backgroundImageOpacity, setBackgroundImage, setBackgroundImageOpacity, removeBackgroundImage } = useProjectStore();
   const { theme, toggleTheme } = useTheme();
   
   const [selectedColor, setSelectedColor] = useState<string | null>("#000000");
@@ -39,7 +39,9 @@ export default function Editor() {
   const [showCenterMark, setShowCenterMark] = useState(true);
   const [hGuides, setHGuides] = useState<Set<number>>(new Set());
   const [vGuides, setVGuides] = useState<Set<number>>(new Set());
-  const [hoveredCell, setHoveredCell] = useState<{x: number, y: number} | null>(null);
+  // const [hoveredCell, setHoveredCell] = useState<{x: number, y: number} | null>(null); // Removed for performance
+  const coordsRef = useRef<HTMLParagraphElement>(null); // Direct DOM access
+
   const [isBackgroundSettingsOpen, setIsBackgroundSettingsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundBtnRef = useRef<HTMLButtonElement>(null);
@@ -155,7 +157,7 @@ export default function Editor() {
 
   const handleCellClick = (x: number, y: number) => {
     if (tool === "brush" || tool === "select") {
-      setCellColor(x, y, selectedColor);
+      setCellColor(x, y, selectedColor, true);
 
       if (isSymmetric) {
         let mirrorX = x;
@@ -167,11 +169,11 @@ export default function Editor() {
         }
         
         if (mirrorX !== x || mirrorY !== y) {
-          setCellColor(mirrorX, mirrorY, selectedColor);
+          setCellColor(mirrorX, mirrorY, selectedColor, true);
         }
       }
     } else if (tool === "eraser") {
-      setCellColor(x, y, null);
+      setCellColor(x, y, null, true);
       if (isSymmetric) {
         let mirrorX = x;
         let mirrorY = y;
@@ -181,15 +183,36 @@ export default function Editor() {
            mirrorY = height - 1 - y;
         }
         if (mirrorX !== x || mirrorY !== y) {
-          setCellColor(mirrorX, mirrorY, null);
+          setCellColor(mirrorX, mirrorY, null, true);
         }
       }
     }
   };
 
   const handleMouseLeave = () => {
-    setHoveredCell(null);
+    // setHoveredCell(null);
+    if (coordsRef.current) {
+       coordsRef.current.innerText = "X: 0, Y: 0";
+    }
   };
+  
+  const handleCellHover = useCallback((x: number, y: number) => {
+     if (coordsRef.current) {
+        coordsRef.current.innerText = `X: ${x + 1}, Y: ${y + 1}`;
+     }
+  }, []);
+
+  const handleCellDrag = useCallback((_x: number, _y: number) => {
+    if (tool === 'brush') return selectedColor;
+    if (tool === 'eraser') return null;
+    return null; 
+  }, [tool, selectedColor]);
+
+  const handleBatchUpdate = useCallback((updates: {x: number, y: number, color: string | null}[]) => {
+     if (updates.length > 0) {
+        setCellsColors(updates, true); // History already pushed by onStrokeStart
+     }
+  }, [setCellsColors]);
 
   const handleSave = async () => {
     try {
@@ -208,8 +231,17 @@ export default function Editor() {
       }
 
       const state = useProjectStore.getState();
-      // Exclude markedCells, history, undoStack, redoStack from the saved file
-      const { markedCells, history, undoStack, redoStack, grid, ...rest } = state;
+      // Exclude markedCells, history, undoStack, redoStack, and background image from the saved file
+      const { 
+        markedCells, 
+        history, 
+        undoStack, 
+        redoStack, 
+        grid, 
+        backgroundImageUrl, 
+        backgroundImageOpacity, 
+        ...rest 
+      } = state;
 
       // Convert grid colors from hex to ID
       const gridWithIds = grid.map(row => 
@@ -350,8 +382,8 @@ export default function Editor() {
           </button>
           <div>
             <h1 className="text-lg font-bold">{name}</h1>
-            <p className="text-xs text-zinc-500 font-mono">
-              X: {hoveredCell ? hoveredCell.x + 1 : 0}, Y: {hoveredCell ? hoveredCell.y + 1 : 0}
+            <p ref={coordsRef} className="text-xs text-zinc-500 font-mono">
+              X: 0, Y: 0
             </p>
           </div>
         </div>
@@ -941,14 +973,17 @@ export default function Editor() {
                   isSymmetric={isSymmetric}
                   symmetryAxis={symmetryAxis}
                   tool={tool}
-                  hoveredCell={hoveredCell}
+                  hoveredCell={null}
                   backgroundImageUrl={backgroundImageUrl}
                   backgroundImageOpacity={backgroundImageOpacity}
                   onCellClick={handleCellClick}
-                  onCellHover={(x, y) => setHoveredCell({ x, y })}
+                  onCellDrag={handleCellDrag}
+                  onBatchUpdate={handleBatchUpdate}
+                  onCellHover={handleCellHover}
                   onMouseLeave={() => {
                     handleMouseLeave();
                   }}
+                  onStrokeStart={pushToUndoStack}
                 />
               </div>
             </div>

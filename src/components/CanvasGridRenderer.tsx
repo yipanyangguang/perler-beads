@@ -20,8 +20,18 @@ interface CanvasGridRendererProps {
   backgroundImageUrl?: string;
   backgroundImageOpacity?: number;
   onCellClick: (x: number, y: number) => void;
+  /**
+   * Called during dragging to update visual state locally without React render cycle.
+   * Return the new color for this cell.
+   */
+  onCellDrag?: (x: number, y: number) => string | null;
+  /**
+   * Called when dragging finishes to commit all changes.
+   */
+  onBatchUpdate?: (updates: {x: number, y: number, color: string | null}[]) => void;
   onCellHover: (x: number, y: number) => void;
   onMouseLeave: () => void;
+  onStrokeStart?: () => void;
 }
 
 const CanvasGridRenderer = memo(({
@@ -41,13 +51,17 @@ const CanvasGridRenderer = memo(({
   backgroundImageUrl,
   backgroundImageOpacity,
   onCellClick,
+  onCellDrag,
+  onBatchUpdate,
   onCellHover,
   onMouseLeave,
+  onStrokeStart,
 }: CanvasGridRendererProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const pendingUpdatesRef = useRef<Map<string, { x: number; y: number; color: string | null }>>(new Map());
 
   const cellSize = 20 * zoom;
   const canvasConfig: CanvasConfig = {
@@ -57,6 +71,14 @@ const CanvasGridRenderer = memo(({
     offsetX: 0,
     offsetY: 0,
   };
+
+  // Helper to commit updates
+  const commitPendingUpdates = useCallback(() => {
+    if (pendingUpdatesRef.current.size > 0 && onBatchUpdate) {
+      onBatchUpdate(Array.from(pendingUpdatesRef.current.values()));
+      pendingUpdatesRef.current.clear();
+    }
+  }, [onBatchUpdate]);
 
   // 初始化 Canvas 和渲染器
   useEffect(() => {
@@ -113,7 +135,7 @@ const CanvasGridRenderer = memo(({
 
     rendererRef.current.updateConfig(rendererConfig);
     rendererRef.current.render(grid);
-  }, [grid, theme, showLabels, showCenterMark, hGuides, vGuides, isSymmetric, symmetryAxis, hoveredCell, cellSize, backgroundImageUrl, backgroundImageOpacity]);
+  }, [grid, theme, showLabels, showCenterMark, hGuides, vGuides, isSymmetric, symmetryAxis, cellSize, backgroundImageUrl, backgroundImageOpacity]);
 
   // 处理鼠标按下
   const handleMouseDown = useCallback(
@@ -121,11 +143,46 @@ const CanvasGridRenderer = memo(({
       const cell = getGridCellFromMouseEvent(e, canvasConfig);
       if (!cell) return;
 
+      if (tool === 'brush' || tool === 'eraser') {
+        onStrokeStart?.();
+        
+        // Handle first click immediately + start "batch"
+        const isActionTool = tool === 'brush' || tool === 'eraser';
+        if (isActionTool && onCellDrag && rendererRef.current) {
+           const newColor = onCellDrag(cell.x, cell.y);
+           if (newColor !== undefined) {
+              // Local draw
+              rendererRef.current.drawSingleCell(cell.x, cell.y, newColor);
+              pendingUpdatesRef.current.set(`${cell.x}-${cell.y}`, { x: cell.x, y: cell.y, color: newColor });
+              
+              // Handle symmetry
+              if (isSymmetric) {
+                 let mirrorX = cell.x;
+                 let mirrorY = cell.y;
+                 if (symmetryAxis === 'x') {
+                    mirrorX = width - 1 - cell.x;
+                 } else {
+                    mirrorY = height - 1 - cell.y;
+                 }
+
+                 if (mirrorX !== cell.x || mirrorY !== cell.y) {
+                    rendererRef.current.drawSingleCell(mirrorX, mirrorY, newColor);
+                    pendingUpdatesRef.current.set(`${mirrorX}-${mirrorY}`, { x: mirrorX, y: mirrorY, color: newColor });
+                 }
+              }
+           }
+        } else {
+           // Fallback or Select tool
+           onCellClick(cell.x, cell.y);
+        }
+      } else {
+        onCellClick(cell.x, cell.y);
+      }
+
       setIsDragging(true);
       dragStartRef.current = cell;
-      onCellClick(cell.x, cell.y);
     },
-    [canvasConfig, onCellClick]
+    [canvasConfig, onCellClick, onStrokeStart, tool, onCellDrag, isSymmetric, symmetryAxis, width, height]
   );
 
   // 处理鼠标移动
@@ -141,24 +198,53 @@ const CanvasGridRenderer = memo(({
 
       // 拖拽模式下连续绘制
       if (isDragging && dragStartRef.current && (tool === 'brush' || tool === 'eraser')) {
-        onCellClick(cell.x, cell.y);
+        // Use local batch update if available
+        if (onCellDrag && rendererRef.current) {
+          const newColor = onCellDrag(cell.x, cell.y);
+          if (newColor !== undefined) {
+             // Local draw
+             rendererRef.current.drawSingleCell(cell.x, cell.y, newColor);
+             pendingUpdatesRef.current.set(`${cell.x}-${cell.y}`, { x: cell.x, y: cell.y, color: newColor });
+             
+              // Handle symmetry
+              if (isSymmetric) {
+                 let mirrorX = cell.x;
+                 let mirrorY = cell.y;
+                 if (symmetryAxis === 'x') {
+                    mirrorX = width - 1 - cell.x;
+                 } else {
+                    mirrorY = height - 1 - cell.y;
+                 }
+
+                 if (mirrorX !== cell.x || mirrorY !== cell.y) {
+                    rendererRef.current.drawSingleCell(mirrorX, mirrorY, newColor);
+                    pendingUpdatesRef.current.set(`${mirrorX}-${mirrorY}`, { x: mirrorX, y: mirrorY, color: newColor });
+                 }
+              }
+          }
+        } else {
+          // Fallback to legacy
+          onCellClick(cell.x, cell.y);
+        }
       }
     },
-    [canvasConfig, isDragging, tool, onCellClick, onCellHover, onMouseLeave]
+    [canvasConfig, isDragging, tool, onCellClick, onCellHover, onMouseLeave, onCellDrag, isSymmetric, symmetryAxis, width, height]
   );
 
   // 处理鼠标抬起
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     dragStartRef.current = null;
-  }, []);
+    commitPendingUpdates();
+  }, [commitPendingUpdates]);
 
   // 处理鼠标离开
   const handleMouseLeave = useCallback(() => {
     setIsDragging(false);
     dragStartRef.current = null;
+    commitPendingUpdates();
     onMouseLeave();
-  }, [onMouseLeave]);
+  }, [onMouseLeave, commitPendingUpdates]);
 
   useEffect(() => {
     window.addEventListener('mouseup', handleMouseUp);

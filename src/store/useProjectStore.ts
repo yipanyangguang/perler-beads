@@ -42,7 +42,9 @@ interface ProjectStore extends ProjectState {
   loadProject: (project: ProjectState) => void;
   undo: () => void;
   redo: () => void;
-  setCellColor: (x: number, y: number, color: string | null) => void;
+  setCellColor: (x: number, y: number, color: string | null, skipHistory?: boolean) => void;
+  setCellsColors: (updates: {x: number, y: number, color: string | null}[], skipHistory?: boolean) => void;
+  pushToUndoStack: () => void;
   moveGrid: (direction: 'up' | 'down' | 'left' | 'right') => void;
   toggleMarkCell: (id: string) => void;
   setMarkCell: (id: string, marked: boolean) => void;
@@ -118,14 +120,16 @@ export const useProjectStore = create<ProjectStore>()(
         );
 
         // Safely extract only ProjectState properties, ignoring history/undoStack/redoStack if present in input
-        const { history, undoStack, redoStack, grid, ...rest } = project as any;
+        const { history, undoStack, redoStack, grid, backgroundImageUrl, backgroundImageOpacity, ...rest } = project as any;
 
         set({ 
           ...rest, 
           grid: gridWithHex,
           lastModified: Date.now(), 
           undoStack: [], 
-          redoStack: [] 
+          redoStack: [],
+          backgroundImageUrl: undefined,
+          backgroundImageOpacity: 100,
         });
       },
 
@@ -167,22 +171,72 @@ export const useProjectStore = create<ProjectStore>()(
         };
       }),
 
-      setCellColor: (x, y, color) =>
+      setCellColor: (x, y, color, skipHistory = false) =>
         set((state) => {
-          // Push to undo stack
-          const current: UndoState = {
-            grid: state.grid,
-            width: state.width,
-            height: state.height
-          };
-          const newUndoStack = [...state.undoStack, current].slice(-5); // Keep last 5
+          let newUndoStack = state.undoStack;
+          let newRedoStack = state.redoStack;
+
+          if (!skipHistory) {
+            // Push to undo stack
+            const current: UndoState = {
+              grid: state.grid,
+              width: state.width,
+              height: state.height
+            };
+            newUndoStack = [...state.undoStack, current].slice(-20);
+          }
+          
+          // Any modification clears redo stack
+          newRedoStack = [];
 
           const newGrid = [...state.grid];
           // Create a shallow copy of the row to avoid mutation
           newGrid[y] = [...newGrid[y]];
           newGrid[y][x] = { ...newGrid[y][x], color };
-          return { grid: newGrid, lastModified: Date.now(), undoStack: newUndoStack, redoStack: [] };
+          return { grid: newGrid, lastModified: Date.now(), undoStack: newUndoStack, redoStack: newRedoStack };
         }),
+
+      setCellsColors: (updates, skipHistory = false) =>
+        set((state) => {
+          let newUndoStack = state.undoStack;
+          let newRedoStack = state.redoStack;
+
+          if (!skipHistory) {
+            // Push to undo stack
+            const current: UndoState = {
+              grid: state.grid,
+              width: state.width,
+              height: state.height
+            };
+            newUndoStack = [...state.undoStack, current].slice(-20);
+          }
+
+          newRedoStack = [];
+
+          const newGrid = [...state.grid];
+          // Optimization: track modified rows to avoid repeated shallow copying
+          const modifiedRows = new Set<number>();
+          
+          updates.forEach(({ x, y, color }) => {
+            if (!modifiedRows.has(y)) {
+              newGrid[y] = [...newGrid[y]];
+              modifiedRows.add(y);
+            }
+            newGrid[y][x] = { ...newGrid[y][x], color };
+          });
+          
+          return { grid: newGrid, lastModified: Date.now(), undoStack: newUndoStack, redoStack: newRedoStack };
+        }),
+
+      pushToUndoStack: () => set((state) => {
+        const current: UndoState = {
+          grid: state.grid,
+          width: state.width,
+          height: state.height
+        };
+        const newUndoStack = [...state.undoStack, current].slice(-20);
+        return { undoStack: newUndoStack, redoStack: [] };
+      }),
 
       moveGrid: (direction) =>
         set((state) => {
@@ -192,7 +246,7 @@ export const useProjectStore = create<ProjectStore>()(
             width: state.width,
             height: state.height
           };
-          const newUndoStack = [...state.undoStack, current].slice(-5);
+          const newUndoStack = [...state.undoStack, current].slice(-20);
 
           const { width, height, grid } = state;
           const newGrid = grid.map(row => row.map(cell => ({ ...cell }))); // Deep copy for safety
@@ -521,17 +575,9 @@ export const useProjectStore = create<ProjectStore>()(
     }),
     {
       name: 'perler-beads-storage',
+      // Only persist history to make sure editor performance is not affected by large grid storage
       partialize: (state) => ({
-        id: state.id,
-        name: state.name,
-        width: state.width,
-        height: state.height,
-        grid: state.grid,
-        markedCells: state.markedCells,
-        lastModified: state.lastModified,
         history: state.history,
-        backgroundImageUrl: state.backgroundImageUrl,
-        backgroundImageOpacity: state.backgroundImageOpacity,
       }),
     }
   )
