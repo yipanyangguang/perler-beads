@@ -33,11 +33,9 @@ const RAW_RUNTIME_STATE =
           ["@tauri-apps/plugin-dialog", "npm:2.4.2"],\
           ["@tauri-apps/plugin-fs", "npm:2.4.4"],\
           ["@tauri-apps/plugin-opener", "npm:2.5.2"],\
-          ["@types/animejs", "npm:3.1.13"],\
           ["@types/react", "npm:19.2.7"],\
           ["@types/react-dom", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:19.2.3"],\
           ["@vitejs/plugin-react", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:4.7.0"],\
-          ["animejs", "npm:3.2.2"],\
           ["autoprefixer", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:10.4.23"],\
           ["clsx", "npm:2.1.1"],\
           ["html2canvas", "npm:1.4.1"],\
@@ -1204,15 +1202,6 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
-    ["@types/animejs", [\
-      ["npm:3.1.13", {\
-        "packageLocation": "../../../.yarn/berry/cache/@types-animejs-npm-3.1.13-441599515b-10c0.zip/node_modules/@types/animejs/",\
-        "packageDependencies": [\
-          ["@types/animejs", "npm:3.1.13"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
     ["@types/babel__core", [\
       ["npm:7.20.5", {\
         "packageLocation": "../../../.yarn/berry/cache/@types-babel__core-npm-7.20.5-4d95f75eab-10c0.zip/node_modules/@types/babel__core/",\
@@ -1339,15 +1328,6 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../.yarn/berry/cache/agent-base-npm-7.1.4-cb8b4604d5-10c0.zip/node_modules/agent-base/",\
         "packageDependencies": [\
           ["agent-base", "npm:7.1.4"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["animejs", [\
-      ["npm:3.2.2", {\
-        "packageLocation": "../../../.yarn/berry/cache/animejs-npm-3.2.2-450609534f-10c0.zip/node_modules/animejs/",\
-        "packageDependencies": [\
-          ["animejs", "npm:3.2.2"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -2398,11 +2378,9 @@ const RAW_RUNTIME_STATE =
           ["@tauri-apps/plugin-dialog", "npm:2.4.2"],\
           ["@tauri-apps/plugin-fs", "npm:2.4.4"],\
           ["@tauri-apps/plugin-opener", "npm:2.5.2"],\
-          ["@types/animejs", "npm:3.1.13"],\
           ["@types/react", "npm:19.2.7"],\
           ["@types/react-dom", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:19.2.3"],\
           ["@vitejs/plugin-react", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:4.7.0"],\
-          ["animejs", "npm:3.2.2"],\
           ["autoprefixer", "virtual:b7d07ff0cabd7c844959358dc93003b43caf8c13f5d824efa15e3132f48b72f28de5019a532d39b3de732fc5c01957fe6fe33069b2c43e2d2504c6d1a8ebbebe#npm:10.4.23"],\
           ["clsx", "npm:2.1.1"],\
           ["html2canvas", "npm:1.4.1"],\
@@ -6173,28 +6151,40 @@ class FileHandle {
   sync() {
     throw new Error(`Method not implemented.`);
   }
-  async read(bufferOrOptions, offset, length, position) {
+  async read(bufferOrOptions, offsetOrOptions, length, position) {
     try {
       this[kRef](this.read);
       let buffer;
-      if (!Buffer.isBuffer(bufferOrOptions)) {
-        bufferOrOptions ??= {};
-        buffer = bufferOrOptions.buffer ?? Buffer.alloc(16384);
-        offset = bufferOrOptions.offset || 0;
-        length = bufferOrOptions.length ?? buffer.byteLength;
-        position = bufferOrOptions.position ?? null;
+      let offset;
+      if (!ArrayBuffer.isView(bufferOrOptions)) {
+        buffer = bufferOrOptions?.buffer ?? Buffer.alloc(16384);
+        offset = bufferOrOptions?.offset ?? 0;
+        length = bufferOrOptions?.length ?? buffer.byteLength - offset;
+        position = bufferOrOptions?.position ?? null;
+      } else if (typeof offsetOrOptions === `object` && offsetOrOptions !== null) {
+        buffer = bufferOrOptions;
+        offset = offsetOrOptions?.offset ?? 0;
+        length = offsetOrOptions?.length ?? buffer.byteLength - offset;
+        position = offsetOrOptions?.position ?? null;
       } else {
         buffer = bufferOrOptions;
+        offset = offsetOrOptions ?? 0;
+        length ??= 0;
       }
-      offset ??= 0;
-      length ??= 0;
       if (length === 0) {
         return {
           bytesRead: length,
           buffer
         };
       }
-      const bytesRead = await this[kBaseFs].readPromise(this.fd, buffer, offset, length, position);
+      const bytesRead = await this[kBaseFs].readPromise(
+        this.fd,
+        // FIXME: FakeFS should support ArrayBufferViews directly
+        Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength),
+        offset,
+        length,
+        position
+      );
       return {
         bytesRead,
         buffer
@@ -8589,7 +8579,8 @@ class ZipFS extends BasePortableFakeFS {
         const entries = Array.from(directoryListing, (name) => {
           return Object.assign(this.statImpl(`lstat`, ppath.join(p, name)), {
             name,
-            path: PortablePath.dot
+            path: PortablePath.dot,
+            parentPath: PortablePath.dot
           });
         });
         for (const entry of entries) {
@@ -8600,7 +8591,8 @@ class ZipFS extends BasePortableFakeFS {
           for (const child of subListing) {
             entries.push(Object.assign(this.statImpl(`lstat`, ppath.join(p, subPath, child)), {
               name: child,
-              path: subPath
+              path: subPath,
+              parentPath: subPath
             }));
           }
         }
@@ -8621,7 +8613,8 @@ class ZipFS extends BasePortableFakeFS {
       return Array.from(directoryListing, (name) => {
         return Object.assign(this.statImpl(`lstat`, ppath.join(p, name)), {
           name,
-          path: void 0
+          path: void 0,
+          parentPath: void 0
         });
       });
     } else {
@@ -9096,6 +9089,7 @@ function applyPatch(pnpapi, opts) {
       const optionNames = new Set(Object.keys(options));
       optionNames.delete(`paths`);
       optionNames.delete(`plugnplay`);
+      optionNames.delete(`conditions`);
       if (optionNames.size > 0) {
         throw makeError(
           ErrorCode.UNSUPPORTED,
@@ -9124,11 +9118,15 @@ function applyPatch(pnpapi, opts) {
       const issuerApi = apiPath !== null ? opts.manager.getApiEntry(apiPath, true).instance : null;
       try {
         if (issuerApi !== null) {
-          resolution = issuerApi.resolveRequest(request, path !== null ? `${path}/` : null);
+          resolution = issuerApi.resolveRequest(request, path !== null ? `${path}/` : null, {
+            conditions: options?.conditions
+          });
         } else {
           if (path === null)
             throw new Error(`Assertion failed: Expected the path to be set`);
-          resolution = originalModuleResolveFilename.call(require$$0.Module, request, module || makeFakeParent(path), isMain);
+          resolution = originalModuleResolveFilename.call(require$$0.Module, request, module || makeFakeParent(path), isMain, {
+            conditions: options?.conditions
+          });
         }
       } catch (error) {
         firstError = firstError || error;

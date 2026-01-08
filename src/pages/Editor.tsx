@@ -1,27 +1,29 @@
-import { ArrowLeft, ArrowUp, ArrowRight, ArrowDown, Eraser, MousePointer2, Paintbrush, Save, ZoomIn, ZoomOut, ChevronDown, Eye, EyeOff, X, Grid3X3, Trash2, Plus, Loader2, Wand2, Moon, Sun, FlipHorizontal, FlipVertical, Copy, Undo, Redo, MoreHorizontal, Image as LucideImage, List, LayoutGrid } from "lucide-react";
+import CanvasGridRenderer from "../components/CanvasGridRenderer";
+import { ArrowLeft, ArrowUp, ArrowRight, ArrowDown, Eraser, MousePointer2, Paintbrush, Save, ZoomIn, ZoomOut, ChevronDown, Eye, EyeOff, Grid3X3, Trash2, Plus, Loader2, Wand2, Moon, Sun, FlipHorizontal, FlipVertical, Copy, Undo, Redo, MoreHorizontal, Image as LucideImage, List, LayoutGrid } from "lucide-react";
 import { useRef, useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProjectStore } from "../store/useProjectStore";
 import { useTheme } from "../hooks/useTheme";
 import html2canvas from "html2canvas";
 import clsx from "clsx";
-import anime from "animejs";
-import { save } from '@tauri-apps/plugin-dialog';
-import { writeTextFile, writeFile } from '@tauri-apps/plugin-fs';
+import {
+  saveFileDialog,
+  writeFileText,
+  writeFileBinary,
+} from "../utils/tauri-compat";
 import colorData from "../color";
 import { getColorId, getContrastColor } from "../utils/colorUtils";
 import iconSvg from '../assets/logo.png';
 
 export default function Editor() {
   const navigate = useNavigate();
-  const { grid, width, height, name, setCellColor, moveGrid, addRow, deleteRow, addColumn, deleteColumn, replaceColor, undo, redo, undoStack, redoStack } = useProjectStore();
+  const { grid, width, height, name, setCellColor, moveGrid, addRow, deleteRow, addColumn, deleteColumn, replaceColor, undo, redo, undoStack, redoStack, backgroundImageUrl, backgroundImageOpacity, setBackgroundImage, setBackgroundImageOpacity, removeBackgroundImage } = useProjectStore();
   const { theme, toggleTheme } = useTheme();
   
   const [selectedColor, setSelectedColor] = useState<string | null>("#000000");
   const [tool, setTool] = useState<"brush" | "select" | "eraser">("select");
   const [isSymmetric, setIsSymmetric] = useState(false);
   const [symmetryAxis, setSymmetryAxis] = useState<'x' | 'y'>('x');
-  const [isDragging, setIsDragging] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [isGridSettingsOpen, setIsGridSettingsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -38,8 +40,10 @@ export default function Editor() {
   const [hGuides, setHGuides] = useState<Set<number>>(new Set());
   const [vGuides, setVGuides] = useState<Set<number>>(new Set());
   const [hoveredCell, setHoveredCell] = useState<{x: number, y: number} | null>(null);
+  const [isBackgroundSettingsOpen, setIsBackgroundSettingsOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const backgroundBtnRef = useRef<HTMLButtonElement>(null);
   
-  const gridRef = useRef<HTMLDivElement>(null);
   const gridBtnRef = useRef<HTMLButtonElement>(null);
   const colorBtnRef = useRef<HTMLButtonElement>(null);
   const [gridPopupPos, setGridPopupPos] = useState<{top: number, right: number} | null>(null);
@@ -61,10 +65,6 @@ export default function Editor() {
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
   }, []);
-
-  // Calculate center
-  const centerX = Math.floor(width / 2);
-  const centerY = Math.floor(height / 2);
 
   // Guide helpers
   const toggleHGuide = (y: number) => {
@@ -103,6 +103,27 @@ export default function Editor() {
     setVGuides(new Set());
   };
 
+  // Background image handlers
+  const handleBackgroundImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setBackgroundImage(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveBackgroundImage = () => {
+    removeBackgroundImage();
+  };
+
+  const handleBackgroundOpacityChange = (value: number) => {
+    setBackgroundImageOpacity(value);
+  };
+
   // Calculate color statistics
   const colorStats = useMemo(() => {
     const stats: Record<string, number> = {};
@@ -125,28 +146,9 @@ export default function Editor() {
     };
   }, [grid]);
 
-  // Animation on mount
-  useEffect(() => {
-    anime({
-      targets: '.grid-cell',
-      scale: [0, 1],
-      opacity: [0, 1],
-      delay: anime.stagger(1, { grid: [width, height], from: 'center' }),
-      duration: 400,
-      easing: 'easeOutElastic(1, .8)'
-    });
-  }, []);
-
   const togglePreview = () => {
     const isOpening = !isPreviewMode;
     setIsPreviewMode(isOpening);
-    
-    anime({
-      targets: '#flipper',
-      rotateY: isOpening ? 180 : 0,
-      duration: 1000,
-      easing: 'easeInOutCubic'
-    });
   };
 
   const cellSize = 20 * zoom;
@@ -154,14 +156,6 @@ export default function Editor() {
   const handleCellClick = (x: number, y: number) => {
     if (tool === "brush" || tool === "select") {
       setCellColor(x, y, selectedColor);
-      
-      // Animate click
-      anime({
-        targets: `#cell-${x}-${y}`,
-        scale: [0.8, 1],
-        duration: 200,
-        easing: 'easeOutQuad'
-      });
 
       if (isSymmetric) {
         let mirrorX = x;
@@ -174,12 +168,6 @@ export default function Editor() {
         
         if (mirrorX !== x || mirrorY !== y) {
           setCellColor(mirrorX, mirrorY, selectedColor);
-          anime({
-            targets: `#cell-${mirrorX}-${mirrorY}`,
-            scale: [0.8, 1],
-            duration: 200,
-            easing: 'easeOutQuad'
-          });
         }
       }
     } else if (tool === "eraser") {
@@ -199,31 +187,6 @@ export default function Editor() {
     }
   };
 
-  const handleMouseEnter = (x: number, y: number) => {
-    setHoveredCell({ x, y });
-    if (isDragging) {
-      if (tool === "brush") {
-        setCellColor(x, y, selectedColor);
-        if (isSymmetric) {
-          let mirrorX = x;
-          let mirrorY = y;
-          if (symmetryAxis === 'x') mirrorX = width - 1 - x;
-          else mirrorY = height - 1 - y;
-          if (mirrorX !== x || mirrorY !== y) setCellColor(mirrorX, mirrorY, selectedColor);
-        }
-      } else if (tool === "eraser") {
-        setCellColor(x, y, null);
-        if (isSymmetric) {
-          let mirrorX = x;
-          let mirrorY = y;
-          if (symmetryAxis === 'x') mirrorX = width - 1 - x;
-          else mirrorY = height - 1 - y;
-          if (mirrorX !== x || mirrorY !== y) setCellColor(mirrorX, mirrorY, null);
-        }
-      }
-    }
-  };
-
   const handleMouseLeave = () => {
     setHoveredCell(null);
   };
@@ -231,7 +194,7 @@ export default function Editor() {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const filePath = await save({
+      const filePath = await saveFileDialog({
         filters: [{
           name: 'JSON Project',
           extensions: ['json']
@@ -262,7 +225,7 @@ export default function Editor() {
       };
 
       const data = JSON.stringify(finalState, null, 2);
-      await writeTextFile(filePath, data);
+      await writeFileText(filePath, data);
       
       // Simple feedback
       alert('保存成功！');
@@ -321,7 +284,7 @@ export default function Editor() {
       clearInterval(progressInterval);
       setExportProgress(100);
       
-      const filePath = await save({
+      const filePath = await saveFileDialog({
         filters: [{
           name: 'Image',
           extensions: ['png']
@@ -349,7 +312,7 @@ export default function Editor() {
         try {
           const arrayBuffer = await blob.arrayBuffer();
           const uint8Array = new Uint8Array(arrayBuffer);
-          await writeFile(filePath, uint8Array);
+          await writeFileBinary(filePath, uint8Array);
           alert('导出成功！');
         } catch (err) {
           console.error(err);
@@ -577,6 +540,111 @@ export default function Editor() {
             )}
           </div>
 
+          {/* Background Image Settings */}
+          <button 
+            ref={backgroundBtnRef}
+            onClick={() => {
+              const rect = backgroundBtnRef.current?.getBoundingClientRect();
+              if (rect) {
+                setIsBackgroundSettingsOpen(!isBackgroundSettingsOpen);
+                setGridPopupPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+              }
+            }}
+            className={clsx(
+              "p-2 rounded-lg transition-colors",
+              isBackgroundSettingsOpen
+                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
+            )}
+            title="背景图设置"
+          >
+            <LucideImage size={20} />
+          </button>
+
+          {isBackgroundSettingsOpen && gridPopupPos && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setIsBackgroundSettingsOpen(false)}
+              />
+              <div 
+                className="fixed bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl z-50 w-72 p-4 animate-in fade-in zoom-in-95 duration-200"
+                style={{ top: gridPopupPos.top, right: gridPopupPos.right }}
+              >
+                <h3 className="font-bold text-sm mb-3 text-zinc-900 dark:text-white">背景图设置</h3>
+                
+                <div className="space-y-3">
+                  {/* Upload Button */}
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  >
+                    <LucideImage size={16} />
+                    <span>导入背景图</span>
+                  </button>
+                  <input 
+                    ref={fileInputRef}
+                    type="file" 
+                    accept="image/*"
+                    onChange={handleBackgroundImageUpload}
+                    className="hidden"
+                  />
+
+                  {/* Background Image Status */}
+                  {backgroundImageUrl ? (
+                    <>
+                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                        <p className="text-xs text-green-600 dark:text-green-400 font-medium mb-2">✓ 已导入背景图</p>
+                        
+                        {/* Opacity Slider */}
+                        <div className="space-y-2">
+                          <label className="flex items-center justify-between text-sm">
+                            <span className="text-zinc-600 dark:text-zinc-400">透明度</span>
+                            <span className="font-mono text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-700 px-2 py-1 rounded text-xs">
+                              {backgroundImageOpacity}%
+                            </span>
+                          </label>
+                          <input 
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={backgroundImageOpacity}
+                            onChange={(e) => handleBackgroundOpacityChange(parseInt(e.target.value))}
+                            className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          />
+                          <div className="flex text-xs text-zinc-500 dark:text-zinc-400 justify-between">
+                            <span>0% (隐藏)</span>
+                            <span>100% (可见)</span>
+                          </div>
+                        </div>
+
+                        {/* Remove Button */}
+                        <button 
+                          onClick={handleRemoveBackgroundImage}
+                          className="w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 text-sm bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors border border-red-200 dark:border-red-800"
+                        >
+                          <Trash2 size={14} />
+                          <span>删除背景图</span>
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="bg-zinc-50 dark:bg-zinc-700/50 border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg p-3">
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
+                        未导入背景图<br />
+                        点击上方按钮选择图片
+                      </p>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-2 px-1">
+                    💡 背景图将以 100% 宽高适配编辑板块，调整透明度后可以看到背景图内容。
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Move Grid Controls */}
           <div className="flex items-center gap-1 mr-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
             <button onClick={() => moveGrid('left')} className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded" title="向左移动"><ArrowLeft size={14} /></button>
@@ -792,10 +860,11 @@ export default function Editor() {
 
               {/* Top Ruler */}
               <div 
-                className="grid border-b border-zinc-200 dark:border-zinc-800 overflow-hidden"
+                className="grid border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-x-auto"
                 style={{
                   gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
-                  gap: '1px'
+                  gap: '0',
+                  height: '32px'
                 }}
               >
                 {Array.from({ length: width }).map((_, i) => (
@@ -808,11 +877,12 @@ export default function Editor() {
                       setContextMenu({ type: 'col', index: i, x: e.clientX, y: e.clientY });
                     }}
                     className={clsx(
-                      "flex items-end justify-center text-[10px] border-r pb-1 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors select-none",
+                      "flex items-end justify-center text-[10px] pb-1 cursor-pointer hover:brightness-95 dark:hover:brightness-110 transition-colors select-none border-r border-zinc-100 dark:border-zinc-900",
                       vGuides.has(i) 
-                        ? "text-blue-600 dark:text-blue-400 font-bold border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
-                        : "text-zinc-400 dark:text-zinc-500 border-zinc-200/50 dark:border-zinc-800/50"
+                        ? "text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/20" 
+                        : "text-zinc-400 dark:text-zinc-500 bg-white dark:bg-zinc-950"
                     )}
+                    style={{ height: '32px', minWidth: `${cellSize}px`, width: `${cellSize}px` }}
                   >
                     {i + 1}
                   </div>
@@ -821,10 +891,11 @@ export default function Editor() {
 
               {/* Left Ruler */}
               <div 
-                className="grid border-r border-zinc-200 dark:border-zinc-800 overflow-hidden"
+                className="grid border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-y-auto"
                 style={{
                   gridTemplateRows: `repeat(${height}, ${cellSize}px)`,
-                  gap: '1px'
+                  gap: '0',
+                  width: '32px'
                 }}
               >
                 {Array.from({ length: height }).map((_, i) => (
@@ -837,11 +908,12 @@ export default function Editor() {
                       setContextMenu({ type: 'row', index: i, x: e.clientX, y: e.clientY });
                     }}
                     className={clsx(
-                      "flex items-center justify-end text-[10px] border-b pr-1 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors select-none",
+                      "flex items-center justify-end text-[10px] pr-1 cursor-pointer hover:brightness-95 dark:hover:brightness-110 transition-colors select-none border-b border-zinc-100 dark:border-zinc-900",
                       hGuides.has(i) 
-                        ? "text-blue-600 dark:text-blue-400 font-bold border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
-                        : "text-zinc-400 dark:text-zinc-500 border-zinc-200/50 dark:border-zinc-800/50"
+                        ? "text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/20" 
+                        : "text-zinc-400 dark:text-zinc-500 bg-white dark:bg-zinc-950"
                     )}
+                    style={{ width: '32px', minHeight: `${cellSize}px`, height: `${cellSize}px` }}
                   >
                     {i + 1}
                   </div>
@@ -850,90 +922,34 @@ export default function Editor() {
 
               {/* Grid */}
               <div 
-                ref={gridRef}
-                className="grid gap-px bg-zinc-200 dark:bg-zinc-800 border-r border-b border-zinc-200 dark:border-zinc-800"
+                className="bg-white dark:bg-zinc-950"
                 style={{
-                  gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
-                  width: 'fit-content'
-                }}
-                onMouseDown={() => setIsDragging(true)}
-                onMouseUp={() => setIsDragging(false)}
-                onMouseLeave={() => {
-                  setIsDragging(false);
-                  handleMouseLeave();
+                  width: 'fit-content',
+                  height: 'fit-content'
                 }}
               >
-                {grid.map((row, y) => (
-                  row.map((cell, x) => {
-                    const isCenter = showCenterMark && x === centerX && y === centerY;
-                    const hasVGuide = vGuides.has(x);
-                    const hasHGuide = hGuides.has(y);
-                    const isFrosted = cell.color === '#FDFBFF';
-                    
-                    // Symmetry Line Logic
-                    let symmetryClass = "";
-                    if (isSymmetric) {
-                      if (symmetryAxis === 'x') {
-                        if (width % 2 === 0) {
-                          if (x === width / 2 - 1) symmetryClass = "!border-r-2 !border-r-purple-500 z-20";
-                        } else {
-                          if (x === Math.floor(width / 2)) symmetryClass = "after:content-[''] after:absolute after:inset-0 after:bg-purple-500/10 after:pointer-events-none";
-                        }
-                      } else {
-                        if (height % 2 === 0) {
-                          if (y === height / 2 - 1) symmetryClass = "!border-b-2 !border-b-purple-500 z-20";
-                        } else {
-                          if (y === Math.floor(height / 2)) symmetryClass = "after:content-[''] after:absolute after:inset-0 after:bg-purple-500/10 after:pointer-events-none";
-                        }
-                      }
-                    }
-
-                    return (
-                      <div
-                        key={cell.id}
-                        id={`cell-${x}-${y}`}
-                        className={clsx(
-                          "grid-cell bg-white dark:bg-zinc-900 hover:brightness-95 dark:hover:brightness-110 cursor-pointer transition-colors duration-75 relative flex items-center justify-center",
-                          hasVGuide && "!border-r-2 !border-r-blue-400 dark:!border-r-blue-500 z-10",
-                          hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10",
-                          symmetryClass,
-                          isFrosted && "frosted-bead"
-                        )}
-                        style={{ 
-                          backgroundColor: isFrosted ? undefined : (cell.color || undefined),
-                          width: `${cellSize}px`,
-                          height: `${cellSize}px`
-                        }}
-                        onMouseDown={() => handleCellClick(x, y)}
-                        onMouseEnter={() => handleMouseEnter(x, y)}
-                      >
-                        {/* Center Mark */}
-                        {isCenter && !cell.color && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <X size={cellSize * 0.6} className="text-zinc-300 dark:text-zinc-600 opacity-50" strokeWidth={1.5} />
-                          </div>
-                        )}
-
-                        {/* Hover Coordinates */}
-                        {hoveredCell?.x === x && hoveredCell?.y === y && !cell.color && !isCenter && (
-                          <span className="pointer-events-none text-[8px] text-zinc-400 select-none">
-                            {x+1},{y+1}
-                          </span>
-                        )}
-                        
-                        {/* Color Label */}
-                        {showLabels && cell.color && zoom >= 0.8 && (
-                          <span 
-                            className="pointer-events-none text-[8px] font-bold select-none"
-                            style={{ color: getContrastColor(cell.color) }}
-                          >
-                            {getColorId(cell.color)}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })
-                ))}
+                <CanvasGridRenderer 
+                  width={width}
+                  height={height}
+                  grid={grid}
+                  zoom={zoom}
+                  theme={theme as 'light' | 'dark'}
+                  showLabels={showLabels}
+                  showCenterMark={showCenterMark}
+                  hGuides={hGuides}
+                  vGuides={vGuides}
+                  isSymmetric={isSymmetric}
+                  symmetryAxis={symmetryAxis}
+                  tool={tool}
+                  hoveredCell={hoveredCell}
+                  backgroundImageUrl={backgroundImageUrl}
+                  backgroundImageOpacity={backgroundImageOpacity}
+                  onCellClick={handleCellClick}
+                  onCellHover={(x, y) => setHoveredCell({ x, y })}
+                  onMouseLeave={() => {
+                    handleMouseLeave();
+                  }}
+                />
               </div>
             </div>
 
@@ -1064,30 +1080,28 @@ export default function Editor() {
                         filter: 'contrast(120%) brightness(100%)'
                       }}></div>
                 
-                {/* Beads */}
-                <div 
-                  className="grid gap-0 relative z-10" 
-                  style={{ 
-                    gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
-                    width: 'fit-content'
-                  }}
-                >
-                  {grid.map((row) => (
-                    row.map((cell) => (
-                      <div
-                        key={`preview-${cell.id}`}
-                        className={clsx(cell.color === '#FDFBFF' && "frosted-bead")}
-                        style={{ 
-                          backgroundColor: cell.color === '#FDFBFF' ? undefined : (cell.color || 'transparent'),
-                          width: `${cellSize}px`,
-                          height: `${cellSize}px`,
-                          borderRadius: '0',
-                          transform: cell.color ? 'scale(1)' : 'none',
-                          zIndex: cell.color ? 1 : 0
-                        }}
-                      />
-                    ))
-                  ))}
+                {/* Preview Canvas Grid */}
+                <div className="relative z-10">
+                  <CanvasGridRenderer 
+                    width={width}
+                    height={height}
+                    grid={grid}
+                    zoom={zoom}
+                    theme="light"
+                    showLabels={false}
+                    showCenterMark={false}
+                    hGuides={new Set()}
+                    vGuides={new Set()}
+                    isSymmetric={false}
+                    symmetryAxis="x"
+                    tool="select"
+                    hoveredCell={null}
+                    backgroundImageUrl={backgroundImageUrl}
+                    backgroundImageOpacity={backgroundImageOpacity}
+                    onCellClick={() => {}}
+                    onCellHover={() => {}}
+                    onMouseLeave={() => {}}
+                  />
                 </div>
               </div>
             </div>
