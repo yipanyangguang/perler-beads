@@ -1,10 +1,13 @@
 import { ArrowLeft, Check, Eye, EyeOff, Grid3X3, Plus, Trash2, X, ZoomIn, ZoomOut, Moon, Sun, CheckSquare, Square, Brush } from "lucide-react";
 import { useRef, useState, useMemo, useCallback, memo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProjectStore, CellData } from "../store/useProjectStore";
-import { useTheme } from "../hooks/useTheme";
-import clsx from "clsx";
-import { getColorId, getContrastColor } from "../utils/colorUtils";
+import { useProjectStore, CellData } from "@/store/useProjectStore";
+import { useTheme } from "@/hooks/useTheme";
+import { clsx } from "@/utils/clsx";
+import { getColorId, getContrastColor } from "@/utils/colorUtils";
+
+// 样式
+import styles from "./index.module.scss";
 
 // Memoized Cell Component to improve performance
 interface MarkingCellProps {
@@ -45,11 +48,10 @@ const MarkingCell = memo(({
           width: `${cellSize}px`,
           height: `${cellSize}px`
         }}
-        className={clsx(
-          "grid-cell bg-white dark:bg-zinc-900 transition-colors duration-75 relative flex items-center justify-center",
-          hasVGuide && "!border-r-2 !border-r-blue-400 dark:!border-r-blue-500 z-10",
-          hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10"
-        )}
+        className={clsx(styles.gridCell, {
+          [styles.hasVGuide]: hasVGuide,
+          [styles.hasHGuide]: hasHGuide
+        })}
       />
     );
   }
@@ -57,13 +59,12 @@ const MarkingCell = memo(({
   return (
     <div
       id={`cell-${cell.x}-${cell.y}`}
-      className={clsx(
-        "grid-cell bg-white dark:bg-zinc-900 hover:brightness-95 dark:hover:brightness-110 cursor-pointer transition-colors duration-75 relative flex items-center justify-center",
-        hasVGuide && "!border-r-2 !border-r-blue-400 dark:!border-r-blue-500 z-10",
-        hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10",
-        isMarked && "after:content-[''] after:absolute after:inset-0 after:bg-black/10 dark:after:bg-white/10",
-        isFrosted && "frosted-bead"
-      )}
+      className={clsx(styles.gridCell, {
+        [styles.hasVGuide]: hasVGuide,
+        [styles.hasHGuide]: hasHGuide,
+        [styles.marked]: isMarked,
+        [styles.dark]: cell.color === '#FDFBFF'
+      })}
       style={{ 
         backgroundColor: isFrosted ? undefined : (cell.color || undefined),
         width: `${cellSize}px`,
@@ -74,21 +75,21 @@ const MarkingCell = memo(({
     >
       {/* Marked Indicator - Adjusted opacity and color */}
       {isMarked && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+        <div className={styles.markedIndicator}>
           <Check size={cellSize * 0.8} className="text-green-500/80 drop-shadow-sm" strokeWidth={2.5} />
         </div>
       )}
 
       {/* Center Mark */}
       {isCenter && !cell.color && !isMarked && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className={styles.centerMark}>
           <X size={cellSize * 0.6} className="text-zinc-300 dark:text-zinc-600 opacity-50" strokeWidth={1.5} />
         </div>
       )}
 
       {/* Hover Coordinates */}
       {isHovered && !cell.color && !isCenter && (
-        <span className="pointer-events-none text-[8px] text-zinc-400 select-none">
+        <span className={styles.hoverCoords}>
           {cell.x+1},{cell.y+1}
         </span>
       )}
@@ -96,7 +97,7 @@ const MarkingCell = memo(({
       {/* Color Label */}
       {showLabels && cell.color && zoom >= 0.8 && (
         <span 
-          className="pointer-events-none text-[8px] font-bold select-none"
+          className={styles.colorLabel}
           style={{ color: getContrastColor(cell.color) }}
         >
           {getColorId(cell.color)}
@@ -270,13 +271,13 @@ export default function Marking() {
 
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white transition-colors duration-300">
+    <div className={clsx(styles.container, { [styles.dark]: theme === 'dark' })}>
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 transition-colors duration-300 z-10 overflow-x-auto whitespace-nowrap min-h-[60px]">
-        <div className="flex items-center gap-4">
+      <header className={clsx(styles.header, { [styles.dark]: theme === 'dark' })}>
+        <div className={styles.headerLeft}>
           <button 
             onClick={() => navigate("/editor")}
-            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+            className={clsx(styles.button, { [styles.dark]: theme === 'dark' })}
           >
             <ArrowLeft size={20} />
           </button>
@@ -288,18 +289,18 @@ export default function Marking() {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className={styles.headerRight}>
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors mr-2"
+            className={clsx(styles.button, { [styles.dark]: theme === 'dark' })}
             title={theme === 'dark' ? '切换亮色模式' : '切换深色模式'}
           >
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
           {/* Zoom Controls */}
-          <div className="flex items-center gap-2 mr-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1">
+          <div className={clsx(styles.zoomControls, { [styles.dark]: theme === 'dark' })}>
             <ZoomOut size={16} className="text-zinc-500" />
             <input 
               type="range" 
@@ -308,7 +309,6 @@ export default function Marking() {
               step="0.1" 
               value={zoom} 
               onChange={(e) => setZoom(parseFloat(e.target.value))}
-              className="w-24 h-1 bg-zinc-300 dark:bg-zinc-600 rounded-lg appearance-none cursor-pointer"
             />
             <ZoomIn size={16} className="text-zinc-500" />
             <span className="text-xs w-8 text-center">{Math.round(zoom * 100)}%</span>
@@ -317,12 +317,10 @@ export default function Marking() {
           {/* Brush Mode Toggle */}
           <button
             onClick={() => setIsBrushMode(!isBrushMode)}
-            className={clsx(
-              "p-2 rounded-lg transition-colors mr-1",
-              isBrushMode 
-                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" 
-                : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
-            )}
+            className={clsx(styles.buttonControl, {
+              [styles.active]: isBrushMode,
+              [styles.dark]: theme === 'dark'
+            })}
             title="刷子模式"
           >
             <Brush size={20} />
@@ -331,12 +329,10 @@ export default function Marking() {
           {/* Label Toggle */}
           <button
             onClick={() => setShowLabels(!showLabels)}
-            className={clsx(
-              "p-2 rounded-lg transition-colors mr-1",
-              showLabels 
-                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" 
-                : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
-            )}
+            className={clsx(styles.buttonControl, {
+              [styles.active]: showLabels,
+              [styles.dark]: theme === 'dark'
+            })}
             title="显示色号"
           >
             {showLabels ? <Eye size={20} /> : <EyeOff size={20} />}
@@ -346,12 +342,10 @@ export default function Marking() {
           <div className="relative mr-2">
             <button
               onClick={() => setIsGridSettingsOpen(!isGridSettingsOpen)}
-              className={clsx(
-                "p-2 rounded-lg transition-colors",
-                isGridSettingsOpen
-                  ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                  : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
-              )}
+              className={clsx(styles.buttonControl, {
+                [styles.active]: isGridSettingsOpen,
+                [styles.dark]: theme === 'dark'
+              })}
               title="网格设置"
             >
               <Grid3X3 size={20} />
@@ -360,28 +354,28 @@ export default function Marking() {
             {isGridSettingsOpen && (
               <>
                 <div 
-                  className="fixed inset-0 z-10" 
+                  className={clsx('fixed inset-0 z-10', { [styles.dark]: theme === 'dark' })}
                   onClick={() => setIsGridSettingsOpen(false)}
                 />
-                <div className="absolute top-full right-0 mt-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl z-20 w-64 p-4 animate-in fade-in zoom-in-95 duration-200">
-                  <h3 className="font-bold text-sm mb-3 text-zinc-900 dark:text-white">网格辅助线</h3>
+                <div className={clsx(styles.popup, { [styles.dark]: theme === 'dark' })} style={{ top: '100%', right: 0, marginTop: '0.5rem' }}>
+                  <h3 className={styles.popupTitle}>网格辅助线</h3>
                   
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <span className="text-sm text-zinc-600 dark:text-zinc-300">显示中心点 (X)</span>
+                  <div className={styles.popupContent}>
+                    <label className={styles.toggleLabel}>
+                      <span className={clsx(styles.toggleLabelText, { [styles.dark]: theme === 'dark' })}>显示中心点 (X)</span>
                       <input 
                         type="checkbox" 
                         checked={showCenterMark}
                         onChange={(e) => setShowCenterMark(e.target.checked)}
-                        className="toggle"
+                        className={styles.toggle}
                       />
                     </label>
 
-                    <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-2" />
+                    <div className={clsx(styles.popupDivider, { [styles.dark]: theme === 'dark' })} />
                     
                     <button 
                       onClick={addStandardGuides}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md transition-colors"
+                      className={clsx(styles.popupButton, { [styles.dark]: theme === 'dark' })}
                     >
                       <Plus size={16} />
                       <span>添加 10x10 辅助线</span>
@@ -389,13 +383,13 @@ export default function Marking() {
                     
                     <button 
                       onClick={clearGuides}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                      className={clsx(styles.popupButton, styles.danger, { [styles.dark]: theme === 'dark' })}
                     >
                       <Trash2 size={16} />
                       <span>清除所有辅助线</span>
                     </button>
 
-                    <p className="text-xs text-zinc-400 mt-2 px-1">
+                    <p className={styles.popupHint}>
                       提示：点击标尺数字可单独切换该行/列的辅助线。
                     </p>
                   </div>
@@ -404,11 +398,11 @@ export default function Marking() {
             )}
           </div>
 
-          <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800 mx-2" />
+          <div className={clsx(styles.divider, { [styles.dark]: theme === 'dark' })} />
 
           <button 
             onClick={handleResetMarks}
-            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            className={clsx(styles.buttonDanger, { [styles.dark]: theme === 'dark' })}
           >
             <Trash2 size={16} />
             清空标记
@@ -417,22 +411,19 @@ export default function Marking() {
       </header>
 
       {/* Main Editor Area */}
-      <main className="flex-1 overflow-auto bg-zinc-100 dark:bg-zinc-950 transition-colors duration-300">
-        <div className="min-w-full min-h-full flex flex-col items-center p-12">
+      <main className={clsx(styles.main, { [styles.dark]: theme === 'dark' })}>
+        <div className={styles.mainContent}>
           {/* Export Container: Includes Grid, Rulers, and Stats */}
-          <div className="export-container bg-white dark:bg-zinc-900 p-8 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 transition-colors duration-300 flex flex-col gap-8">
+          <div className={clsx(styles.exportContainer, { [styles.dark]: theme === 'dark' })}>
             
             {/* Grid Area */}
-            <div className="grid" style={{ 
-              gridTemplateColumns: `32px 1fr`, 
-              gridTemplateRows: `32px 1fr` 
-            }}>
+            <div className={styles.gridWrapper}>
               {/* Corner (Empty) */}
-              <div className="border-b border-r border-zinc-200 dark:border-zinc-800"></div>
+              <div className={clsx(styles.gridCorner, { [styles.dark]: theme === 'dark' })}></div>
 
               {/* Top Ruler */}
               <div 
-                className="grid border-b border-zinc-200 dark:border-zinc-800 overflow-hidden"
+                className={clsx(styles.topRuler, styles.grid, { [styles.dark]: theme === 'dark' })}
                 style={{
                   gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
                   gap: '1px'
@@ -443,10 +434,9 @@ export default function Marking() {
                     key={i} 
                     onClick={() => toggleVGuide(i)}
                     className={clsx(
-                      "flex items-end justify-center text-[10px] border-r pb-1 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors select-none",
-                      vGuides.has(i) 
-                        ? "text-blue-600 dark:text-blue-400 font-bold border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
-                        : "text-zinc-400 dark:text-zinc-500 border-zinc-200/50 dark:border-zinc-800/50"
+                      styles.rulerItem,
+                      vGuides.has(i) && styles.active,
+                      { [styles.dark]: theme === 'dark' }
                     )}
                   >
                     {i + 1}
@@ -456,7 +446,7 @@ export default function Marking() {
 
               {/* Left Ruler */}
               <div 
-                className="grid border-r border-zinc-200 dark:border-zinc-800 overflow-hidden"
+                className={clsx(styles.leftRuler, styles.grid, { [styles.dark]: theme === 'dark' })}
                 style={{
                   gridTemplateRows: `repeat(${height}, ${cellSize}px)`,
                   gap: '1px'
@@ -467,10 +457,9 @@ export default function Marking() {
                     key={i} 
                     onClick={() => toggleHGuide(i)}
                     className={clsx(
-                      "flex items-center justify-end text-[10px] border-b pr-1 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors select-none",
-                      hGuides.has(i) 
-                        ? "text-blue-600 dark:text-blue-400 font-bold border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
-                        : "text-zinc-400 dark:text-zinc-500 border-zinc-200/50 dark:border-zinc-800/50"
+                      styles.rulerItem,
+                      hGuides.has(i) && styles.active,
+                      { [styles.dark]: theme === 'dark' }
                     )}
                   >
                     {i + 1}
@@ -481,7 +470,7 @@ export default function Marking() {
               {/* Grid */}
               <div 
                 ref={gridRef}
-                className="grid gap-px bg-zinc-200 dark:bg-zinc-800 border-r border-b border-zinc-200 dark:border-zinc-800"
+                className={clsx(styles.gridCells, styles.grid, { [styles.dark]: theme === 'dark' })}
                 style={{
                   gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
                   width: 'fit-content'
@@ -519,29 +508,28 @@ export default function Marking() {
             </div>
 
             {/* Bottom Stats Area */}
-            <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-sm text-zinc-900 dark:text-white">颜色统计清单</h3>
-                <span className="text-xs text-zinc-500">总计: {colorStats.total} 颗</span>
+            <div className={clsx(styles.statsContent, { [styles.dark]: theme === 'dark' })}>
+              <div className={styles.statsHeader}>
+                <h3 className={clsx(styles.statsTitle, { [styles.dark]: theme === 'dark' })}>颜色统计清单</h3>
+                <span className={styles.statsTotal}>总计: {colorStats.total} 颗</span>
               </div>
               
-              <div className="grid grid-cols-4 gap-4 export-stats-grid">
+              <div className={clsx(styles.statsGrid, styles.gridCols4)}>
                 {colorStats.colors.map(([color, count]) => {
                   const isHidden = hiddenColors.has(color);
                   return (
                     <div 
                       key={color} 
                       className={clsx(
-                        "flex items-center gap-2 p-2 rounded border transition-colors h-10",
-                        isHidden 
-                          ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 opacity-60" 
-                          : "bg-zinc-50 dark:bg-zinc-800/50 border-zinc-100 dark:border-zinc-800"
+                        styles.colorStatItem,
+                        isHidden && styles.hidden,
+                        { [styles.dark]: theme === 'dark' }
                       )}
                     >
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className={styles.statButtons}>
                         <button
                           onClick={() => toggleColorVisibility(color)}
-                          className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors p-1"
+                          className={clsx(styles.statButton, { [styles.dark]: theme === 'dark' })}
                           title={isHidden ? "显示该颜色" : "隐藏该颜色"}
                         >
                           {isHidden ? <Square size={14} /> : <CheckSquare size={14} />}
@@ -549,7 +537,7 @@ export default function Marking() {
 
                         <button
                           onClick={() => handleMarkAllColor(color)}
-                          className="text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1"
+                          className={clsx(styles.statButton, styles.markAll, { [styles.dark]: theme === 'dark' })}
                           title="标记所有同色格子"
                         >
                           <Check size={14} />
@@ -558,28 +546,29 @@ export default function Marking() {
 
                       <div 
                         className={clsx(
-                          "w-6 h-6 rounded-full border border-zinc-200 dark:border-zinc-600 shadow-sm flex items-center justify-center flex-shrink-0",
-                          color === '#FDFBFF' && "frosted-bead"
+                          styles.colorCircle,
+                          color === '#FDFBFF' && styles.frosted,
+                          { [styles.dark]: theme === 'dark' }
                         )}
                         style={{ backgroundColor: color === '#FDFBFF' ? undefined : color }}
                       >
                         <span 
-                          className="text-[8px] font-bold"
+                          className={styles.colorCircleText}
                           style={{ color: getContrastColor(color) }}
                         >
                           {getColorId(color)}
                         </span>
                       </div>
                       
-                      <div className="flex flex-1 items-center justify-between gap-2 min-w-0">
-                        <span className="text-xs font-bold truncate">{getColorId(color)}</span>
-                        <span className="text-xs font-mono text-zinc-500 shrink-0">{count}</span>
+                      <div className={styles.statContent}>
+                        <span className={styles.statColorId}>{getColorId(color)}</span>
+                        <span className={styles.statCount}>{count}</span>
                       </div>
                     </div>
                   );
                 })}
                 {colorStats.colors.length === 0 && (
-                  <div className="col-span-4 text-center py-4 text-xs text-zinc-400">
+                  <div className={styles.emptyStats}>
                     暂无颜色数据
                   </div>
                 )}
@@ -593,24 +582,24 @@ export default function Marking() {
       {confirmMarkAll && (
         <>
           <div 
-            className="fixed inset-0 z-50 bg-black/20 dark:bg-black/50 backdrop-blur-sm"
+            className={clsx(styles.confirmdial, { [styles.dark]: theme === 'dark' })}
             onClick={() => setConfirmMarkAll(null)}
           />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white dark:bg-zinc-800 p-6 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-80 animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold mb-2 text-zinc-900 dark:text-white">确认标记</h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-300 mb-6">
-              确定要标记所有 <span className="font-bold text-zinc-900 dark:text-white">{getColorId(confirmMarkAll)}</span> 颜色的格子吗？
+          <div className={clsx(styles.confirmModalContent, { [styles.dark]: theme === 'dark' })}>
+            <h3 className={clsx(styles.modalTitle, { [styles.dark]: theme === 'dark' })}>确认标记</h3>
+            <p className={clsx(styles.modalContent, { [styles.dark]: theme === 'dark' })}>
+              确定要标记所有 <span className={clsx(styles.colorName, { [styles.dark]: theme === 'dark' })}>{getColorId(confirmMarkAll)}</span> 颜色的格子吗？
             </p>
-            <div className="flex justify-end gap-3">
+            <div className={styles.modalActions}>
               <button
                 onClick={() => setConfirmMarkAll(null)}
-                className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                className={clsx(styles.modalButton, styles.secondary, { [styles.dark]: theme === 'dark' })}
               >
                 取消
               </button>
               <button
                 onClick={executeMarkAllColor}
-                className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm"
+                className={clsx(styles.modalButton, styles.primary)}
               >
                 确认标记
               </button>

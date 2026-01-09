@@ -1,0 +1,43 @@
+@import '../../assets/_variables.module.scss';
+
+.welcome {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+
+  .logoWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-3;
+    margin-bottom: $spacing-4;
+
+    .logoBg {
+      padding: $spacing-3;
+      background-color: rgb(59 130 246 / 0.1);
+      border-radius: $radius-xl;
+
+      img {
+        width: 3rem;
+        height: 3rem;
+      }
+    }
+  }
+
+  .title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    background: linear-gradient(to right, #60a5fa, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    color: $color-text-secondary;
+    .dark & {
+      color: $color-text-secondary-dark;
+    }
+  }
+}

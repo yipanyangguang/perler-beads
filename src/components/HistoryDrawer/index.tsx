@@ -3,10 +3,9 @@
  * 项目历史记录抽屉
  */
 
-import { FC } from "react";
 import { History, X, Trash2 } from "lucide-react";
-import { HistoryItem } from "../store/useProjectStore";
-import styles from "../pages/Home.module.scss";
+import { HistoryItem } from "@/store/useProjectStore";
+import styles from "@/pages/Home/index.module.scss";
 
 /**
  * HistoryDrawer 组件的 Props
@@ -28,13 +27,13 @@ interface HistoryDrawerProps {
  * HistoryDrawer 组件
  * 展示项目打开历史，用户可以快速打开或删除历史记录
  */
-const HistoryDrawer: FC<HistoryDrawerProps> = ({
+const HistoryDrawer = ({
   isOpen,
   history,
   onClose,
   onItemClick,
   onDeleteItem,
-}) => {
+}: HistoryDrawerProps) => {
   return (
     <div className={`${styles.drawer} ${isOpen ? styles.open : ""}`}>
       {/* 抽屉头部 */}

@@ -1,0 +1,82 @@
+/**
+ * Home.module.scss
+ * Home 页面样式定义（仅包含页面级别样式）
+ * 子组件样式已分离到各自的 CSS Modules 文件中
+ * 采用 CSS Modules 模式，避免全局污染
+ */
+
+// stylelint-disable-next-line
+// 导入全局 SCSS 变量
+@import '../../assets/_variables.module.scss';
+
+// 主容器
+.container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  padding: $spacing-4;
+  background-color: $color-bg-light;
+  color: $color-text-secondary;
+  transition: background-color $duration-300;
+
+  &.dark {
+    background-color: $color-bg-dark;
+    color: $color-text-secondary-dark;
+  }
+}
+
+// 顶部操作栏
+.header {
+  position: absolute;
+  top: $spacing-4;
+  right: $spacing-4;
+  display: flex;
+  gap: $spacing-2;
+
+  button {
+    padding: $spacing-2;
+    border-radius: 50%;
+    transition: background-color $duration-300;
+    background-color: transparent;
+    color: $color-text-secondary;
+    border: none;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #e4e4e7; // zinc-200
+    }
+
+    .dark & {
+      color: $color-text-secondary-dark;
+
+      &:hover {
+        background-color: #27272a; // zinc-800
+      }
+    }
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 640px) {
+  .drawer {
+    width: 100%;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .actionCard {
+    max-width: 100%;
+  }
+}

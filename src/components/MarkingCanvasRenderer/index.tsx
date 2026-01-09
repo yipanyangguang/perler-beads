@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
-import { CellData } from '../store/useProjectStore';
+import { CellData } from '@/store/useProjectStore';
 
 interface MarkingCanvasRendererProps {
   grid: CellData[][];

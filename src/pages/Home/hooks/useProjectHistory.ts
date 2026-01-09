@@ -1,12 +1,12 @@
 /**
  * useProjectHistory Hook
- * 处理项目历史记录相关的逻辑
+ * Home 页面特定：处理项目历史记录相关的逻辑
  */
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProjectStore } from "../store/useProjectStore";
-import { readFileText, isTauriEnvironment } from "../utils/tauri-compat";
+import { useProjectStore } from "@/store/useProjectStore";
+import { readFileText, isTauriEnvironment } from "@/utils/tauri-compat";
 
 export const useProjectHistory = () => {
   const navigate = useNavigate();

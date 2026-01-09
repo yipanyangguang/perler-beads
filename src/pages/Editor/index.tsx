@@ -1,19 +1,20 @@
-import CanvasGridRenderer from "../components/CanvasGridRenderer";
+import CanvasGridRenderer from "@/components/CanvasGridRenderer";
 import { ArrowLeft, ArrowUp, ArrowRight, ArrowDown, Eraser, MousePointer2, Paintbrush, Save, ZoomIn, ZoomOut, ChevronDown, Eye, EyeOff, Grid3X3, Trash2, Plus, Loader2, Wand2, Moon, Sun, FlipHorizontal, FlipVertical, Copy, Undo, Redo, MoreHorizontal, Image as LucideImage, List, LayoutGrid } from "lucide-react";
 import { useRef, useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProjectStore } from "../store/useProjectStore";
-import { useTheme } from "../hooks/useTheme";
+import { useProjectStore } from "@/store/useProjectStore";
+import { useTheme } from "@/hooks/useTheme";
 import html2canvas from "html2canvas";
-import clsx from "clsx";
+import { clsx } from "@/utils/clsx";
 import {
   saveFileDialog,
   writeFileText,
   writeFileBinary,
-} from "../utils/tauri-compat";
-import colorData from "../color";
-import { getColorId, getContrastColor } from "../utils/colorUtils";
-import iconSvg from '../assets/logo.png';
+} from "@/utils/tauri-compat";
+import colorData from "@/color";
+import { getColorId, getContrastColor } from "@/utils/colorUtils";
+import iconSvg from '@/assets/logo.png';
+import styles from "./index.module.scss";
 
 export default function Editor() {
   const navigate = useNavigate();
@@ -370,9 +371,9 @@ export default function Editor() {
   }, [activeCategory]);
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white transition-colors duration-300">
+    <div className={clsx(styles.container, { [styles.dark]: theme === 'dark' })}>
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 transition-colors duration-300 z-10 overflow-x-auto whitespace-nowrap min-h-[60px]">
+      <header className={clsx(styles.header, { [styles.dark]: theme === 'dark' })}>
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate("/")}
@@ -381,54 +382,45 @@ export default function Editor() {
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-lg font-bold">{name}</h1>
-            <p ref={coordsRef} className="text-xs text-zinc-500 font-mono">
+            <h1 className={styles.headerTitle}>{name}</h1>
+            <p ref={coordsRef} className={styles.headerSubtitle}>
               X: 0, Y: 0
             </p>
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className={styles.headerRight}>
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors mr-2"
+            className={clsx(styles.themeToggle, { [styles.dark]: theme === 'dark' })}
             title={theme === 'dark' ? '切换亮色模式' : '切换深色模式'}
           >
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
           {/* Symmetry Controls */}
-          <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 mr-2">
+          <div className={clsx(styles.symmetryGroup, { [styles.dark]: theme === 'dark' })}>
             <button
               onClick={() => setIsSymmetric(!isSymmetric)}
-              className={clsx(
-                "p-2 rounded-md transition-colors",
-                isSymmetric ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-              )}
+              className={clsx(styles.symmetryButton, { [styles.active]: isSymmetric, [styles.dark]: theme === 'dark' })}
               title="对称模式"
             >
               <Copy size={18} />
             </button>
             {isSymmetric && (
               <>
-                <div className="w-px h-4 bg-zinc-300 dark:bg-zinc-600 mx-1" />
+                <div className={clsx(styles.symmetryDivider, { [styles.dark]: theme === 'dark' })} />
                 <button
                   onClick={() => setSymmetryAxis('x')}
-                  className={clsx(
-                    "p-2 rounded-md transition-colors",
-                    symmetryAxis === 'x' ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-                  )}
+                  className={clsx(styles.symmetryButton, styles.axisButton, { [styles.active]: symmetryAxis === 'x', [styles.dark]: theme === 'dark' })}
                   title="左右对称"
                 >
                   <FlipHorizontal size={18} />
                 </button>
                 <button
                   onClick={() => setSymmetryAxis('y')}
-                  className={clsx(
-                    "p-2 rounded-md transition-colors",
-                    symmetryAxis === 'y' ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-                  )}
+                  className={clsx(styles.symmetryButton, styles.axisButton, { [styles.active]: symmetryAxis === 'y', [styles.dark]: theme === 'dark' })}
                   title="上下对称"
                 >
                   <FlipVertical size={18} />
@@ -438,14 +430,11 @@ export default function Editor() {
           </div>
 
           {/* Undo/Redo */}
-          <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 mr-2">
+          <div className={clsx(styles.historyGroup, { [styles.dark]: theme === 'dark' })}>
             <button
               onClick={undo}
               disabled={undoStack.length === 0}
-              className={clsx(
-                "p-2 rounded-md transition-colors",
-                undoStack.length === 0 ? "text-zinc-300 dark:text-zinc-600 cursor-not-allowed" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700"
-              )}
+              className={clsx(styles.historyButton, { [styles.dark]: theme === 'dark' })}
               title="撤销"
             >
               <Undo size={18} />
@@ -453,10 +442,7 @@ export default function Editor() {
             <button
               onClick={redo}
               disabled={redoStack.length === 0}
-              className={clsx(
-                "p-2 rounded-md transition-colors",
-                redoStack.length === 0 ? "text-zinc-300 dark:text-zinc-600 cursor-not-allowed" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700"
-              )}
+              className={clsx(styles.historyButton, { [styles.dark]: theme === 'dark' })}
               title="重做"
             >
               <Redo size={18} />
@@ -464,7 +450,7 @@ export default function Editor() {
           </div>
 
           {/* Zoom Controls */}
-          <div className="flex items-center gap-2 mr-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1">
+          <div className={clsx(styles.zoomGroup, { [styles.dark]: theme === 'dark' })}>
             <ZoomOut size={16} className="text-zinc-500" />
             <input 
               type="range" 
@@ -473,10 +459,10 @@ export default function Editor() {
               step="0.1" 
               value={zoom} 
               onChange={(e) => setZoom(parseFloat(e.target.value))}
-              className="w-24 h-1 bg-zinc-300 dark:bg-zinc-600 rounded-lg appearance-none cursor-pointer"
+              className={clsx(styles.zoomSlider, { [styles.dark]: theme === 'dark' })}
             />
             <ZoomIn size={16} className="text-zinc-500" />
-            <span className="text-xs w-8 text-center">{Math.round(zoom * 100)}%</span>
+            <span className={styles.zoomLabel}>{Math.round(zoom * 100)}%</span>
           </div>
 
           {/* Label Toggle */}

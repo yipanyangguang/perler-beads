@@ -1,0 +1,49 @@
+@import '../../assets/_variables.module.scss';
+
+.canvasGrid {
+  display: grid;
+  background: $color-bg-card-light;
+  border-radius: $radius-lg;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  border: 1px solid $color-border-light;
+  .dark & {
+    background: $color-bg-card-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.cell {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid $color-border-light;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background $duration-200;
+  &:hover {
+    background: $color-border-hover;
+  }
+  .dark & {
+    border-color: $color-border-dark;
+    &:hover {
+      background: $color-border-hover-dark;
+    }
+  }
+}
+
+.cellLabel {
+  font-size: 0.7rem;
+  color: $color-text-secondary;
+  .dark & {
+    color: $color-text-secondary-dark;
+  }
+}
+
+.centerMark {
+  background: $color-primary;
+  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+}

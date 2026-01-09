@@ -1,17 +1,17 @@
 /**
  * useProjectImport Hook
- * 处理项目导入相关的逻辑
+ * Home 页面特定：处理项目导入相关的逻辑
  */
 
 import { useNavigate } from "react-router-dom";
-import { useProjectStore } from "../store/useProjectStore";
+import { useProjectStore } from "@/store/useProjectStore";
 import {
   openFileDialog,
   readFileText,
   handleFileImport,
   readFileFromInput,
   isTauriEnvironment,
-} from "../utils/tauri-compat";
+} from "@/utils/tauri-compat";
 
 export const useProjectImport = () => {
   const navigate = useNavigate();

@@ -1,4 +1,4 @@
-import colorData from "../color";
+import colorData from "@/color";
 
 // Create a reverse map for O(1) lookup
 const hexToIdMap: Record<string, string> = {};

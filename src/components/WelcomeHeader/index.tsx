@@ -3,9 +3,8 @@
  * 页面顶部欢迎区域，包含 logo、标题和副标题
  */
 
-import { FC } from "react";
-import logo from "../assets/logo.svg";
-import styles from "../pages/Home.module.scss";
+import logo from "@/assets/logo.svg";
+import styles from "@/pages/Home/index.module.scss";
 
 /**
  * WelcomeHeader 组件的 Props
@@ -18,7 +17,7 @@ interface WelcomeHeaderProps {
 /**
  * WelcomeHeader 组件
  */
-const WelcomeHeader: FC<WelcomeHeaderProps> = () => {
+const WelcomeHeader = (_props: WelcomeHeaderProps) => {
   return (
     <div className={styles.welcome}>
       {/* Logo 区域 */}

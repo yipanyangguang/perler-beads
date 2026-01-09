@@ -1,0 +1,114 @@
+/**
+ * _utilities.scss
+ * 基础工具样式和全局样式变量
+ * 用于替代 utilities.css，但通过 SCSS 管理
+ */
+
+// 颜色定义
+$color-white: #ffffff;
+$color-black: #000000;
+$color-text: #18181b;
+$color-text-light: #ffffff;
+$color-text-secondary: #71717a;
+$color-bg-light: #fafafa;
+$color-bg-dark: #09090b;
+$color-border: #e4e4e7;
+$color-border-dark: #27272a;
+$color-blue-600: #2563eb;
+$color-red-600: #dc2626;
+$color-green-500: #22c55e;
+$color-zinc-100: #f4f4f5;
+$color-zinc-200: #e4e4e7;
+$color-zinc-300: #d4d4d8;
+$color-zinc-400: #a1a1a6;
+$color-zinc-500: #71717a;
+$color-zinc-600: #52525b;
+$color-zinc-800: #27272a;
+$color-zinc-900: #18181b;
+
+// 间距
+$spacing-1: 0.25rem;
+$spacing-2: 0.5rem;
+$spacing-3: 0.75rem;
+$spacing-4: 1rem;
+$spacing-6: 1.5rem;
+$spacing-8: 2rem;
+$spacing-12: 3rem;
+
+// 圆角
+$radius-sm: 0.375rem;
+$radius-md: 0.5rem;
+$radius-lg: 0.75rem;
+
+// 转换
+$duration-75: 75ms;
+$duration-200: 200ms;
+$duration-300: 300ms;
+
+// 深色模式 mixin
+@mixin dark {
+  &.dark {
+    @content;
+  }
+}
+
+// Flexbox 工具
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.items-end {
+  align-items: flex-end;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-1 { gap: $spacing-1; }
+.gap-2 { gap: $spacing-2; }
+.gap-4 { gap: $spacing-4; }
+
+.h-screen { height: 100vh; }
+.w-full { width: 100%; }
+.w-px { width: 1px; }
+.h-px { height: 1px; }
+.w-6 { width: 1.5rem; }
+.h-6 { height: 1.5rem; }
+
+// 边框
+.border-b { border-bottom: 1px solid; }
+.border-r { border-right: 1px solid; }
+.border-t { border-top: 1px solid; }
+
+// 动画
+@keyframes fadeInZoom {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-in {
+  animation: fadeInZoom $duration-200 ease-in-out;
+}

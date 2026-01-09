@@ -1,7 +1,7 @@
 import { memo, useRef, useEffect, useState, useCallback } from 'react';
-import { CellData } from '../store/useProjectStore';
-import { CanvasRenderer, RendererConfig } from '../utils/canvasRenderer';
-import { getGridCellFromMouseEvent, CanvasConfig } from '../utils/canvasUtils';
+import { CellData } from '@/store/useProjectStore';
+import { CanvasRenderer, RendererConfig } from '@/utils/canvasRenderer';
+import { getGridCellFromMouseEvent, CanvasConfig } from '@/utils/canvasUtils';
 
 interface CanvasGridRendererProps {
   width: number;

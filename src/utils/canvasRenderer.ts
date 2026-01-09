@@ -2,9 +2,9 @@
  * Canvas 渲染引擎 - 处理网格、颜色、辅助线等绘制
  */
 
-import { CellData } from '../store/useProjectStore';
-import { CanvasConfig, getCellRect } from '../utils/canvasUtils';
-import { getColorId, getContrastColor } from '../utils/colorUtils';
+import { CellData } from '@/store/useProjectStore';
+import { CanvasConfig, getCellRect } from '@/utils/canvasUtils';
+import { getColorId, getContrastColor } from '@/utils/colorUtils';
 
 export interface RendererConfig extends CanvasConfig {
   theme: 'light' | 'dark';

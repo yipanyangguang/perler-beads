@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { getHexFromId } from '../utils/colorUtils';
+import { getHexFromId } from '@/utils/colorUtils';
 
 export interface CellData {
   id: string;

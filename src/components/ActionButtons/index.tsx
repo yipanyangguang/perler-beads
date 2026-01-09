@@ -3,9 +3,8 @@
  * 首页的主要操作按钮区域（新建/导入项目）
  */
 
-import { FC } from "react";
 import { Plus, Upload } from "lucide-react";
-import styles from "../pages/Home.module.scss";
+import styles from "@/pages/Home/index.module.scss";
 
 /**
  * ActionButtons 组件的 Props
@@ -21,7 +20,7 @@ interface ActionButtonsProps {
  * ActionButtons 组件
  * 展示两个主要操作按钮
  */
-const ActionButtons: FC<ActionButtonsProps> = ({ onCreateClick, onImportClick }) => {
+const ActionButtons = ({ onCreateClick, onImportClick }: ActionButtonsProps) => {
   return (
     <div className={styles.actionCard}>
       {/* 卡片头部 */}

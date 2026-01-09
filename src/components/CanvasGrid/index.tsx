@@ -1,7 +1,7 @@
 import { memo, useCallback, useState, useEffect } from "react";
-import clsx from "clsx";
-import { CellData } from "../store/useProjectStore";
-import { getColorId, getContrastColor } from "../utils/colorUtils";
+import { clsx } from "@/utils/clsx";
+import { CellData } from "@/store/useProjectStore";
+import { getColorId, getContrastColor } from "@/utils/colorUtils";
 import { X } from "lucide-react";
 
 interface CanvasGridProps {

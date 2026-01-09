@@ -1,0 +1,85 @@
+@import '../../assets/_variables.module.scss';
+
+.actionCard {
+  width: 100%;
+  max-width: 28rem;
+  background-color: $color-bg-card-light;
+  border: 1px solid $color-border-light;
+  border-radius: $radius-xl;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  transition: background-color $duration-300, border-color $duration-300;
+
+  &.dark {
+    background-color: $color-bg-card-dark;
+    border-color: $color-border-dark;
+  }
+
+  .cardHeader {
+    padding: $spacing-6 $spacing-6 0;
+    .cardTitle {
+      font-size: 1.125rem;
+      font-weight: 700;
+    }
+    .cardSubtitle {
+      font-size: 0.875rem;
+      color: $color-text-secondary;
+      margin-top: $spacing-2;
+      .dark & {
+        color: $color-text-secondary-dark;
+      }
+    }
+  }
+  .cardContent {
+    padding: $spacing-6;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-4;
+  }
+  .button {
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+    padding: $spacing-3 $spacing-4;
+    border-radius: $radius-lg;
+    font-size: 1rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background-color $duration-200, color $duration-200;
+    &.primary {
+      background-color: $color-primary;
+      color: #fff;
+      &:hover {
+        background-color: $color-primary-dark;
+      }
+    }
+    &.secondary {
+      background-color: $color-bg-light;
+      color: $color-primary;
+      border: 1px solid $color-primary;
+      &:hover {
+        background-color: $color-primary;
+        color: #fff;
+      }
+    }
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+    margin: $spacing-4 0;
+    .dividerLine {
+      flex: 1;
+      height: 1px;
+      background-color: $color-border-light;
+    }
+    .dividerText {
+      font-size: 0.875rem;
+      color: $color-text-secondary;
+      .dark & {
+        color: $color-text-secondary-dark;
+      }
+    }
+  }
+}

@@ -1,11 +1,11 @@
 /**
  * useProjectCreation Hook
- * 处理项目创建相关的逻辑
+ * Home 页面特定：处理项目创建相关的逻辑
  */
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProjectStore } from "../store/useProjectStore";
+import { useProjectStore } from "@/store/useProjectStore";
 
 export const useProjectCreation = () => {
   const navigate = useNavigate();

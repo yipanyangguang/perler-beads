@@ -3,9 +3,8 @@
  * 新建项目的模态对话框
  */
 
-import { FC } from "react";
 import { X } from "lucide-react";
-import styles from "../pages/Home.module.scss";
+import styles from "@/pages/Home/index.module.scss";
 
 /**
  * CreateProjectModal 组件的 Props
@@ -35,7 +34,7 @@ interface CreateProjectModalProps {
  * CreateProjectModal 组件
  * 用户在此输入新项目的名称和尺寸
  */
-const CreateProjectModal: FC<CreateProjectModalProps> = ({
+const CreateProjectModal = ({
   isOpen,
   name,
   width,
@@ -45,7 +44,7 @@ const CreateProjectModal: FC<CreateProjectModalProps> = ({
   onHeightChange,
   onCreateClick,
   onClose,
-}) => {
+}: CreateProjectModalProps) => {
   // 如果模态框未打开，返回 null
   if (!isOpen) {
     return null;

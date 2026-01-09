@@ -1,0 +1,24 @@
+@import '../../assets/_variables.module.scss';
+
+.markingCanvasRenderer {
+  width: 100%;
+  height: 100%;
+  background: $color-bg-card-light;
+  border-radius: $radius-lg;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  border: 1px solid $color-border-light;
+  .dark & {
+    background: $color-bg-card-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.markedCell {
+  background: $color-primary;
+  opacity: 0.2;
+}
+
+.guideLine {
+  background: $color-primary;
+  opacity: 0.5;
+}

@@ -1,7 +1,7 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
-import Home from "./pages/Home";
-import Editor from "./pages/Editor";
-import Marking from "./pages/Marking";
+import Home from "@/pages/Home";
+import Editor from "@/pages/Editor";
+import Marking from "@/pages/Marking";
 
 function App() {
   return (
