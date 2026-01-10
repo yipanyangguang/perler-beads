@@ -23,6 +23,7 @@ import styles from "./index.module.scss";
 import historyIcon from "@/assets/icons/history.svg";
 import sunIcon from "@/assets/icons/sun.svg";
 import moonIcon from "@/assets/icons/moon.svg";
+import { Theme } from "@/types/theme";
 
 /**
  * Home 页面组件
@@ -31,7 +32,7 @@ import moonIcon from "@/assets/icons/moon.svg";
 const Home = () => {
   // 主题 Hook
   const { theme, toggleTheme } = useTheme();
-  const isDark = theme === "dark";
+  const isDark = theme === Theme.DARK;
 
   // 项目创建 Hook
   const {
