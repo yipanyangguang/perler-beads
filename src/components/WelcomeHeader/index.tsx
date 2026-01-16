@@ -4,7 +4,7 @@
  */
 
 import logo from "@/assets/logo.svg";
-import styles from "@/pages/Home/index.module.scss";
+import styles from "@/components/WelcomeHeader/index.module.scss";
 
 /**
  * WelcomeHeader 组件的 Props

@@ -17,6 +17,7 @@ export interface RendererConfig extends CanvasConfig {
   hoveredCell: { x: number; y: number } | null;
   backgroundImageUrl?: string;
   backgroundImageOpacity?: number;
+  previewMode?: boolean; // 风格化预览模式
 }
 
 const COLORS = {
@@ -99,6 +100,12 @@ export class CanvasRenderer {
     // 绘制背景图
     this.drawBackgroundImage();
 
+    // 风格化预览模式：只绘制纯色块
+    if (this.config.previewMode) {
+      this.drawCells(grid, colors);
+      return;
+    }
+
     // 绘制网格线
     this.drawGridLines(colors);
 
@@ -123,7 +130,12 @@ export class CanvasRenderer {
    * 绘制背景
    */
   private drawBackground(colors: typeof COLORS['light']) {
-    this.ctx.fillStyle = colors.background;
+    // 预览模式使用纯白背景
+    if (this.config.previewMode) {
+      this.ctx.fillStyle = '#ffffff';
+    } else {
+      this.ctx.fillStyle = colors.background;
+    }
     this.ctx.fillRect(0, 0, this.ctx.canvas.offsetWidth, this.ctx.canvas.offsetHeight);
   }
 
@@ -209,9 +221,15 @@ export class CanvasRenderer {
             // 磨砂效果：绘制棋盘图案
             this.drawFrostedCell(rect);
           } else {
-            // 绘制颜色背景
-            this.ctx.fillStyle = cell.color;
-            this.ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 1, rect.height - 1);
+            // 预览模式：去除间隙，绘制完整格子
+            if (this.config.previewMode) {
+              this.ctx.fillStyle = cell.color;
+              this.ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+            } else {
+              // 正常模式：留出网格线间隙
+              this.ctx.fillStyle = cell.color;
+              this.ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 1, rect.height - 1);
+            }
           }
 
           // 绘制颜色标签
@@ -342,26 +360,27 @@ export class CanvasRenderer {
 
     this.ctx.strokeStyle = colors.symmetryLine;
     this.ctx.lineWidth = 2;
+    this.ctx.setLineDash([5, 5]); // 虚线效果
 
     if (symmetryAxis === 'x') {
-      // 左右对称线
-      if (width % 2 === 0) {
-        const canvasX = offsetX + (width / 2) * cellSize;
-        this.ctx.beginPath();
-        this.ctx.moveTo(canvasX, offsetY);
-        this.ctx.lineTo(canvasX, offsetY + height * cellSize);
-        this.ctx.stroke();
-      }
+      // 左右对称线（垂直线）
+      const centerX = width / 2;
+      const canvasX = offsetX + centerX * cellSize;
+      this.ctx.beginPath();
+      this.ctx.moveTo(canvasX, offsetY);
+      this.ctx.lineTo(canvasX, offsetY + height * cellSize);
+      this.ctx.stroke();
     } else {
-      // 上下对称线
-      if (height % 2 === 0) {
-        const canvasY = offsetY + (height / 2) * cellSize;
-        this.ctx.beginPath();
-        this.ctx.moveTo(offsetX, canvasY);
-        this.ctx.lineTo(offsetX + width * cellSize, canvasY);
-        this.ctx.stroke();
-      }
+      // 上下对称线（水平线）
+      const centerY = height / 2;
+      const canvasY = offsetY + centerY * cellSize;
+      this.ctx.beginPath();
+      this.ctx.moveTo(offsetX, canvasY);
+      this.ctx.lineTo(offsetX + width * cellSize, canvasY);
+      this.ctx.stroke();
     }
+    
+    this.ctx.setLineDash([]); // 重置为实线
   }
 
   /**

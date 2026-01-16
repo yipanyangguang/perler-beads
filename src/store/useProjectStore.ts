@@ -19,6 +19,13 @@ export interface ProjectState {
   lastModified: number;
   backgroundImageUrl?: string; // Base64 or URL for background image
   backgroundImageOpacity?: number; // 0-100
+  // 标记模式状态
+  markingShowLabels?: boolean;
+  markingFadedMode?: boolean;
+  markingHiddenColors?: string[]; // 存储为数组以便序列化
+  markingShowCenterMark?: boolean;
+  markingHGuides?: number[];
+  markingVGuides?: number[];
 }
 
 export interface HistoryItem {
@@ -61,6 +68,13 @@ interface ProjectStore extends ProjectState {
   setBackgroundImage: (imageUrl: string) => void;
   setBackgroundImageOpacity: (opacity: number) => void;
   removeBackgroundImage: () => void;
+  flipHorizontal: () => void;
+  // 标记模式状态actions
+  setMarkingShowLabels: (show: boolean) => void;
+  setMarkingFadedMode: (faded: boolean) => void;
+  setMarkingHiddenColors: (colors: string[]) => void;
+  setMarkingShowCenterMark: (show: boolean) => void;
+  setMarkingGuides: (hGuides: number[], vGuides: number[]) => void;
 }
 
 const generateGrid = (width: number, height: number): CellData[][] => {
@@ -95,6 +109,13 @@ export const useProjectStore = create<ProjectStore>()(
       lastModified: 0,
       backgroundImageUrl: undefined,
       backgroundImageOpacity: 100,
+      // 标记模式状态默认值
+      markingShowLabels: false,
+      markingFadedMode: false,
+      markingHiddenColors: [],
+      markingShowCenterMark: true,
+      markingHGuides: [],
+      markingVGuides: [],
 
       createProject: (width, height, name = 'Untitled Project') => {
         set({
@@ -572,6 +593,37 @@ export const useProjectStore = create<ProjectStore>()(
 
       removeBackgroundImage: () =>
         set({ backgroundImageUrl: undefined, backgroundImageOpacity: 100 }),
+
+      flipHorizontal: () => set((state) => {
+        // Push to undo stack
+        const current: UndoState = {
+          grid: state.grid,
+          width: state.width,
+          height: state.height
+        };
+        const newUndoStack = [...state.undoStack, current].slice(-20);
+
+        const { width, grid } = state;
+        const newGrid = grid.map((row) => {
+           // We map each row to a new row where cell at index i takes color from index width-1-i
+           return row.map((cell, x) => {
+             const mirroredX = width - 1 - x;
+             return {
+               ...cell,
+               color: row[mirroredX].color
+             };
+           });
+        });
+
+        return { grid: newGrid, lastModified: Date.now(), undoStack: newUndoStack, redoStack: [] };
+      }),
+
+      // 标记模式状态管理
+      setMarkingShowLabels: (show) => set({ markingShowLabels: show }),
+      setMarkingFadedMode: (faded) => set({ markingFadedMode: faded }),
+      setMarkingHiddenColors: (colors) => set({ markingHiddenColors: colors }),
+      setMarkingShowCenterMark: (show) => set({ markingShowCenterMark: show }),
+      setMarkingGuides: (hGuides, vGuides) => set({ markingHGuides: hGuides, markingVGuides: vGuides }),
     }),
     {
       name: 'perler-beads-storage',

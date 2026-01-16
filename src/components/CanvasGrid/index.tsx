@@ -1,5 +1,6 @@
 import { memo, useCallback, useState, useEffect } from "react";
 import { clsx } from "@/utils/clsx";
+import styles from "@/components/CanvasGrid/index.module.scss";
 import { CellData } from "@/store/useProjectStore";
 import { getColorId, getContrastColor } from "@/utils/colorUtils";
 import { X } from "lucide-react";
@@ -29,6 +30,7 @@ const CanvasGrid = memo(({
   height,
   grid,
   zoom,
+  theme,
   showLabels,
   showCenterMark,
   hGuides,
@@ -60,10 +62,9 @@ const CanvasGrid = memo(({
 
   return (
     <div 
-      className="grid gap-px bg-zinc-200 dark:bg-zinc-800"
+      className={clsx(styles.canvasGrid, { [styles.dark]: theme === 'dark' })}
       style={{
         gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
-        width: 'fit-content'
       }}
       onMouseLeave={onMouseLeave}
     >
@@ -85,15 +86,15 @@ const CanvasGrid = memo(({
           if (isSymmetric) {
             if (symmetryAxis === 'x') {
               if (width % 2 === 0) {
-                if (x === width / 2 - 1) symmetryClass = "!border-r-2 !border-r-purple-500 z-20";
+                if (x === width / 2 - 1) symmetryClass = styles.symmetryLineX;
               } else {
-                if (x === Math.floor(width / 2)) symmetryClass = "after:content-[''] after:absolute after:inset-0 after:bg-purple-500/10 after:pointer-events-none";
+                if (x === Math.floor(width / 2)) symmetryClass = styles.symmetryOverlay;
               }
             } else {
               if (height % 2 === 0) {
-                if (y === height / 2 - 1) symmetryClass = "!border-b-2 !border-b-purple-500 z-20";
+                if (y === height / 2 - 1) symmetryClass = styles.symmetryLineY;
               } else {
-                if (y === Math.floor(height / 2)) symmetryClass = "after:content-[''] after:absolute after:inset-0 after:bg-purple-500/10 after:pointer-events-none";
+                if (y === Math.floor(height / 2)) symmetryClass = styles.symmetryOverlay;
               }
             }
           }
@@ -103,11 +104,12 @@ const CanvasGrid = memo(({
               key={cell.id}
               id={`cell-${x}-${y}`}
               className={clsx(
-                "grid-cell bg-white dark:bg-zinc-900 hover:brightness-95 dark:hover:brightness-110 cursor-pointer transition-colors duration-75 relative flex items-center justify-center",
-                hasVGuide && "!border-r-2 !border-r-blue-400 dark:!border-r-blue-500 z-10",
-                hasHGuide && "!border-b-2 !border-b-blue-400 dark:!border-b-blue-500 z-10",
+                styles.gridCell,
+                { [styles.dark]: theme === 'dark' },
+                hasVGuide && styles.vGuide,
+                hasHGuide && styles.hGuide,
                 symmetryClass,
-                isFrosted && "frosted-bead"
+                isFrosted && styles.frosted
               )}
               style={{ 
                 backgroundColor: isFrosted ? undefined : (cell.color || undefined),
@@ -127,14 +129,14 @@ const CanvasGrid = memo(({
             >
               {/* Center Mark */}
               {isCenter && !cell.color && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <X size={cellSize * 0.6} className="text-zinc-300 dark:text-zinc-600 opacity-50" strokeWidth={1.5} />
+                <div className={styles.centerMark}>
+                  <X size={cellSize * 0.6} strokeWidth={1.5} />
                 </div>
               )}
 
               {/* Hover Coordinates */}
               {hoveredCell?.x === x && hoveredCell?.y === y && !cell.color && !isCenter && (
-                <span className="pointer-events-none text-[8px] text-zinc-400 select-none">
+                <span className={styles.hoverCoordinates}>
                   {x+1},{y+1}
                 </span>
               )}
@@ -142,7 +144,7 @@ const CanvasGrid = memo(({
               {/* Color Label */}
               {showLabels && cell.color && zoom >= 0.8 && (
                 <span 
-                  className="pointer-events-none text-[8px] font-bold select-none"
+                  className={styles.cellLabel}
                   style={{ color: getContrastColor(cell.color) }}
                 >
                   {getColorId(cell.color)}

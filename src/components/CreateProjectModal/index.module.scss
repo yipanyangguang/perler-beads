@@ -1,3 +1,4 @@
+@use "sass:color";
 @import '../../assets/_variables.module.scss';
 
 .modal {
@@ -6,20 +7,21 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0,0,0,0.2);
+  background: rgba(0,0,0,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  backdrop-filter: blur(4px);
 }
 
 .modalContent {
   background: $color-bg-card-light;
   border-radius: $radius-xl;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-  padding: $spacing-8 $spacing-6;
-  min-width: 320px;
-  max-width: 90vw;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  padding: $spacing-6;
+  width: 90vw;
+  max-width: 480px;
   display: flex;
   flex-direction: column;
   gap: $spacing-6;
@@ -30,66 +32,130 @@
   }
 }
 
-.formGroup {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: $spacing-4;
-  margin-bottom: $spacing-4;
-}
-
-.input {
-  padding: $spacing-2 $spacing-3;
-  border-radius: $radius-lg;
-  border: 1px solid $color-border-light;
-  font-size: 1rem;
-  &:focus {
-    border-color: $color-primary;
-    outline: none;
-  }
-}
-
-.buttonRow {
+.modalHeader {
   display: flex;
-  gap: $spacing-4;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-2;
 }
 
-.button {
-  padding: $spacing-2 $spacing-4;
-  border-radius: $radius-lg;
-  font-size: 1rem;
-  font-weight: 500;
-  border: none;
-  cursor: pointer;
-  transition: background-color $duration-200, color $duration-200;
-  &.confirm {
-    background-color: $color-primary;
-    color: #fff;
-    &:hover {
-      background-color: $color-primary-dark;
-    }
-  }
-  &.cancel {
-    background-color: $color-bg-light;
-    color: $color-primary;
-    border: 1px solid $color-primary;
-    &:hover {
-      background-color: $color-primary;
-      color: #fff;
-    }
-  }
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: $color-text-primary;
 }
 
 .closeButton {
-  position: absolute;
-  top: $spacing-4;
-  right: $spacing-4;
   background: none;
   border: none;
   color: $color-text-secondary;
   cursor: pointer;
-  font-size: 1.25rem;
+  padding: $spacing-1;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $duration-200;
+  
   &:hover {
-    color: $color-red;
+    background: $color-bg-hover;
+    color: $color-text-primary;
+  }
+}
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-5;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.formLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $color-text-secondary;
+}
+
+.formInput {
+  padding: $spacing-3;
+  border-radius: $radius-lg;
+  border: 1px solid $color-border-light;
+  background: $color-bg-input;
+  font-size: 1rem;
+  color: $color-text-primary;
+  transition: all $duration-200;
+  width: 100%;
+  box-sizing: border-box;
+  
+  &:focus {
+    border-color: $color-primary;
+    box-shadow: 0 0 0 2px rgba($color-primary, 0.1);
+    outline: none;
+  }
+  
+  .dark & {
+    background: color.adjust($color-bg-card-dark, $lightness: -2%);
+    border-color: $color-border-dark;
+    color: #fff;
+    &:focus {
+      border-color: $color-primary;
+    }
+  }
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-4;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-3;
+  margin-top: $spacing-2;
+}
+
+.button {
+  padding: $spacing-2 $spacing-5;
+  border-radius: $radius-lg;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all $duration-200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.confirm {
+    border: none;
+    background-color: $color-primary;
+    color: white;
+    &:hover {
+      background-color: color.adjust($color-primary, $lightness: -5%);
+      transform: translateY(-1px);
+    }
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  &.cancel {
+    background-color: transparent;
+    border: 1px solid $color-border-light;
+    color: $color-text-secondary;
+    &:hover {
+      border-color: $color-border-hover;
+      color: $color-text-primary;
+      background-color: $color-bg-hover;
+    }
+    .dark & {
+      border-color: $color-border-dark;
+    }
   }
 }

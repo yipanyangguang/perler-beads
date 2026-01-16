@@ -352,6 +352,49 @@ input[type="range"]::-moz-range-thumb:hover {
 
 .mt-2:not(:first-child) { margin-top: 0.5rem; }
 
-@media (max-width: 640px) {
-  .max-w-\[640px\] { max-width: 640px; }
-}
+/* Additional Tailwind Utilities */
+.animate-in { animation: fadeInZoom 200ms ease-in-out; }
+.fade-in { animation: fadeInZoom 200ms ease-in-out; }
+.zoom-in-95 { animation: fadeInZoom 200ms ease-in-out; }
+
+/* Space & Gap Classes */
+.space-y-2 > * + * { margin-top: 0.5rem; }
+.space-y-3 > * + * { margin-top: 0.75rem; }
+.space-y-4 > * + * { margin-top: 1rem; }
+
+/* Additional Text Colors (Dark Mode) */
+.dark .text-red-400 { color: #f87171; }
+.dark .text-blue-400 { color: #60a5fa; }
+
+/* Background Colors  with Dark Support */
+.dark .bg-white { background-color: #ffffff; }
+.dark .bg-blue-900\/30 { background-color: rgb(30 58 138 / 0.3); }
+.dark .bg-red-900\/20 { background-color: rgb(127 29 29 / 0.2); }
+
+/* Additional Hover States */
+.hover\:bg-zinc-100:hover { background-color: #f4f4f5; }
+.hover\:bg-zinc-200:hover { background-color: #e4e4e7; }
+.hover\:bg-blue-100:hover { background-color: #dbeafe; }
+.hover\:bg-blue-700:hover { background-color: #1d4ed8; }
+.hover\:bg-red-50:hover { background-color: #fef2f2; }
+.hover\:bg-red-100:hover { background-color: #fee2e2; }
+.hover\:bg-red-900\/20:hover { background-color: rgb(127 29 29 / 0.2); }
+.hover\:text-zinc-300:hover { color: #d4d4d8; }
+.hover\:text-white:hover { color: #ffffff; }
+.hover\:text-blue-400:hover { color: #60a5fa; }
+.hover\:text-blue-600:hover { color: #2563eb; }
+.dark .hover\:bg-zinc-700:hover { background-color: #3f3f46; }
+.dark .hover\:bg-zinc-800:hover { background-color: #27272a; }
+.dark .hover\:bg-red-900\/20:hover { background-color: rgb(127 29 29 / 0.3); }
+.dark .hover\:text-zinc-300:hover { color: #d4d4d8; }
+
+/* Scale Transform */
+.hover\:scale-110:hover { transform: scale(1.1); }
+
+/* Focus States */
+.focus\:outline-none:focus { outline: none; }
+.focus\:ring-2:focus { outline: 2px solid; outline-offset: 2px; }
+.focus\:ring-blue-500:focus { outline-color: #3b82f6; }
+.focus\:ring-offset-2:focus { outline-offset: 0.5rem; }
+.dark .focus\:ring-offset-zinc-800:focus { outline-offset: 0; }
+

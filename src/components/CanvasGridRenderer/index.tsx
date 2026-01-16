@@ -19,6 +19,7 @@ interface CanvasGridRendererProps {
   hoveredCell: { x: number; y: number } | null;
   backgroundImageUrl?: string;
   backgroundImageOpacity?: number;
+  previewMode?: boolean;
   onCellClick: (x: number, y: number) => void;
   /**
    * Called during dragging to update visual state locally without React render cycle.
@@ -50,6 +51,7 @@ const CanvasGridRenderer = memo(({
   hoveredCell,
   backgroundImageUrl,
   backgroundImageOpacity,
+  previewMode = false,
   onCellClick,
   onCellDrag,
   onBatchUpdate,
@@ -110,6 +112,7 @@ const CanvasGridRenderer = memo(({
       hoveredCell,
       backgroundImageUrl,
       backgroundImageOpacity,
+      previewMode,
     };
 
     rendererRef.current = new CanvasRenderer(canvas, rendererConfig);
@@ -131,11 +134,12 @@ const CanvasGridRenderer = memo(({
       hoveredCell,
       backgroundImageUrl,
       backgroundImageOpacity,
+      previewMode,
     };
 
     rendererRef.current.updateConfig(rendererConfig);
     rendererRef.current.render(grid);
-  }, [grid, theme, showLabels, showCenterMark, hGuides, vGuides, isSymmetric, symmetryAxis, cellSize, backgroundImageUrl, backgroundImageOpacity]);
+  }, [grid, theme, showLabels, showCenterMark, hGuides, vGuides, isSymmetric, symmetryAxis, cellSize, backgroundImageUrl, backgroundImageOpacity, previewMode]);
 
   // 处理鼠标按下
   const handleMouseDown = useCallback(

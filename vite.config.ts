@@ -19,6 +19,8 @@ export default defineConfig(async () => ({
     preprocessorOptions: {
       scss: {
         silenceDeprecations: ['import'],
+        includePaths: [path.resolve(__dirname, './src')],
+        api: 'modern-compiler',
       },
     },
   },

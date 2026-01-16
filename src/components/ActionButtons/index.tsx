@@ -4,7 +4,7 @@
  */
 
 import { Plus, Upload } from "lucide-react";
-import styles from "@/pages/Home/index.module.scss";
+import styles from "@/components/ActionButtons/index.module.scss";
 
 /**
  * ActionButtons 组件的 Props

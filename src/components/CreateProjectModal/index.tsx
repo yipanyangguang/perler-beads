@@ -4,7 +4,7 @@
  */
 
 import { X } from "lucide-react";
-import styles from "@/pages/Home/index.module.scss";
+import styles from "@/components/CreateProjectModal/index.module.scss";
 
 /**
  * CreateProjectModal 组件的 Props

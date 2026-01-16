@@ -5,7 +5,7 @@
 
 import { History, X, Trash2 } from "lucide-react";
 import { HistoryItem } from "@/store/useProjectStore";
-import styles from "@/pages/Home/index.module.scss";
+import styles from "@/components/HistoryDrawer/index.module.scss";
 
 /**
  * HistoryDrawer 组件的 Props

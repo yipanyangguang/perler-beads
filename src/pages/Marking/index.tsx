@@ -1,146 +1,72 @@
-import { ArrowLeft, Check, Eye, EyeOff, Grid3X3, Plus, Trash2, X, ZoomIn, ZoomOut, Moon, Sun, CheckSquare, Square, Brush } from "lucide-react";
-import { useRef, useState, useMemo, useCallback, memo, useEffect } from "react";
+import { ArrowLeft, Check, Eye, EyeOff, Grid3X3, Plus, Trash2, ZoomIn, ZoomOut, Moon, Sun, CheckSquare, Square, Brush } from "lucide-react";
+import { useRef, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProjectStore, CellData } from "@/store/useProjectStore";
+import { useProjectStore } from "@/store/useProjectStore";
 import { useTheme } from "@/hooks/useTheme";
 import { clsx } from "@/utils/clsx";
 import { getColorId, getContrastColor } from "@/utils/colorUtils";
+import { MarkingCanvasRenderer } from "@/components/MarkingCanvasRenderer";
 
 // 样式
 import styles from "./index.module.scss";
 
-// Memoized Cell Component to improve performance
-interface MarkingCellProps {
-  cell: CellData;
-  cellSize: number;
-  isMarked: boolean;
-  isCenter: boolean;
-  hasVGuide: boolean;
-  hasHGuide: boolean;
-  showLabels: boolean;
-  zoom: number;
-  isHovered: boolean;
-  isHidden: boolean;
-  onMouseDown: (x: number, y: number) => void;
-  onMouseEnter: (x: number, y: number) => void;
-}
-
-const MarkingCell = memo(({ 
-  cell, 
-  cellSize, 
-  isMarked, 
-  isCenter, 
-  hasVGuide, 
-  hasHGuide, 
-  showLabels, 
-  zoom, 
-  isHovered,
-  isHidden,
-  onMouseDown,
-  onMouseEnter 
-}: MarkingCellProps) => {
-  const isFrosted = cell.color === '#FDFBFF';
-
-  if (isHidden) {
-    return (
-      <div
-        style={{ 
-          width: `${cellSize}px`,
-          height: `${cellSize}px`
-        }}
-        className={clsx(styles.gridCell, {
-          [styles.hasVGuide]: hasVGuide,
-          [styles.hasHGuide]: hasHGuide
-        })}
-      />
-    );
-  }
-
-  return (
-    <div
-      id={`cell-${cell.x}-${cell.y}`}
-      className={clsx(styles.gridCell, {
-        [styles.hasVGuide]: hasVGuide,
-        [styles.hasHGuide]: hasHGuide,
-        [styles.marked]: isMarked,
-        [styles.dark]: cell.color === '#FDFBFF'
-      })}
-      style={{ 
-        backgroundColor: isFrosted ? undefined : (cell.color || undefined),
-        width: `${cellSize}px`,
-        height: `${cellSize}px`
-      }}
-      onMouseDown={() => onMouseDown(cell.x, cell.y)}
-      onMouseEnter={() => onMouseEnter(cell.x, cell.y)}
-    >
-      {/* Marked Indicator - Adjusted opacity and color */}
-      {isMarked && (
-        <div className={styles.markedIndicator}>
-          <Check size={cellSize * 0.8} className="text-green-500/80 drop-shadow-sm" strokeWidth={2.5} />
-        </div>
-      )}
-
-      {/* Center Mark */}
-      {isCenter && !cell.color && !isMarked && (
-        <div className={styles.centerMark}>
-          <X size={cellSize * 0.6} className="text-zinc-300 dark:text-zinc-600 opacity-50" strokeWidth={1.5} />
-        </div>
-      )}
-
-      {/* Hover Coordinates */}
-      {isHovered && !cell.color && !isCenter && (
-        <span className={styles.hoverCoords}>
-          {cell.x+1},{cell.y+1}
-        </span>
-      )}
-      
-      {/* Color Label */}
-      {showLabels && cell.color && zoom >= 0.8 && (
-        <span 
-          className={styles.colorLabel}
-          style={{ color: getContrastColor(cell.color) }}
-        >
-          {getColorId(cell.color)}
-        </span>
-      )}
-    </div>
-  );
-}, (prev, next) => {
-  return (
-    prev.cell === next.cell &&
-    prev.cellSize === next.cellSize &&
-    prev.isMarked === next.isMarked &&
-    prev.isCenter === next.isCenter &&
-    prev.hasVGuide === next.hasVGuide &&
-    prev.hasHGuide === next.hasHGuide &&
-    prev.showLabels === next.showLabels &&
-    prev.zoom === next.zoom &&
-    prev.isHovered === next.isHovered &&
-    prev.isHidden === next.isHidden &&
-    prev.onMouseDown === next.onMouseDown &&
-    prev.onMouseEnter === next.onMouseEnter
-  );
-});
-
 export default function Marking() {
   const navigate = useNavigate();
-  const { grid, width, height, name, markedCells, toggleMarkCell, setMarkCell, markAllColor, resetMarks } = useProjectStore();
+  const { 
+    grid, width, height, name, markedCells, 
+    toggleMarkCell, setMarkCell, markAllColor, resetMarks,
+    markingShowLabels, markingFadedMode, markingHiddenColors, 
+    markingShowCenterMark, markingHGuides, markingVGuides,
+    setMarkingShowLabels, setMarkingFadedMode, setMarkingHiddenColors,
+    setMarkingShowCenterMark, setMarkingGuides
+  } = useProjectStore();
   const { theme, toggleTheme } = useTheme();
   
   const [zoom, setZoom] = useState(1);
-  const [showLabels, setShowLabels] = useState(false);
+  const [showLabels, setShowLabelsLocal] = useState(markingShowLabels ?? false);
   const [isBrushMode, setIsBrushMode] = useState(false);
-  const isDraggingRef = useRef(false);
   const brushTargetStateRef = useRef<boolean | null>(null);
-  const [showCenterMark, setShowCenterMark] = useState(true);
-  const [hGuides, setHGuides] = useState<Set<number>>(new Set());
-  const [vGuides, setVGuides] = useState<Set<number>>(new Set());
+  const [showCenterMark, setShowCenterMarkLocal] = useState(markingShowCenterMark ?? true);
+  const [hGuides, setHGuidesLocal] = useState<Set<number>>(new Set(markingHGuides ?? []));
+  const [vGuides, setVGuidesLocal] = useState<Set<number>>(new Set(markingVGuides ?? []));
   const [hoveredCell, setHoveredCell] = useState<{x: number, y: number} | null>(null);
   const [isGridSettingsOpen, setIsGridSettingsOpen] = useState(false);
-  const [hiddenColors, setHiddenColors] = useState<Set<string>>(new Set());
+  const [hiddenColors, setHiddenColorsLocal] = useState<Set<string>>(new Set(markingHiddenColors ?? []));
   const [confirmMarkAll, setConfirmMarkAll] = useState<string | null>(null);
+  const [fadedMode, setFadedModeLocal] = useState(markingFadedMode ?? false);
   
   const gridRef = useRef<HTMLDivElement>(null);
+
+  // 包装setter函数以同步到store
+  const setShowLabels = (show: boolean) => {
+    setShowLabelsLocal(show);
+    setMarkingShowLabels(show);
+  };
+
+  const setFadedMode = (faded: boolean) => {
+    setFadedModeLocal(faded);
+    setMarkingFadedMode(faded);
+  };
+
+  const setShowCenterMark = (show: boolean) => {
+    setShowCenterMarkLocal(show);
+    setMarkingShowCenterMark(show);
+  };
+
+  const setHGuides = (guides: Set<number>) => {
+    setHGuidesLocal(guides);
+    setMarkingGuides(Array.from(guides), Array.from(vGuides));
+  };
+
+  const setVGuides = (guides: Set<number>) => {
+    setVGuidesLocal(guides);
+    setMarkingGuides(Array.from(hGuides), Array.from(guides));
+  };
+
+  const setHiddenColors = (colors: Set<string>) => {
+    setHiddenColorsLocal(colors);
+    setMarkingHiddenColors(Array.from(colors));
+  };
 
   // Calculate center
   const centerX = Math.floor(width / 2);
@@ -185,59 +111,80 @@ export default function Marking() {
 
   // Calculate color statistics
   const colorStats = useMemo(() => {
-    const stats: Record<string, number> = {};
+    const stats: Record<string, { count: number; marked: number }> = {};
     let total = 0;
+    let markedTotal = 0;
+    
     grid.forEach(row => {
       row.forEach(cell => {
         if (cell.color) {
-          stats[cell.color] = (stats[cell.color] || 0) + 1;
+          if (!stats[cell.color]) {
+            stats[cell.color] = { count: 0, marked: 0 };
+          }
+          stats[cell.color].count++;
           total++;
+          
+          // 统计已标记数量
+          if (markedCells[cell.id]) {
+            stats[cell.color].marked++;
+            markedTotal++;
+          }
         }
       });
     });
+    
+    // 按颜色ID字母数字排序
+    const sortedColors = Object.entries(stats).sort((a, b) => {
+      const idA = getColorId(a[0]) || a[0];
+      const idB = getColorId(b[0]) || b[0];
+      return idA.localeCompare(idB, undefined, { numeric: true });
+    });
+    
     return {
-      colors: Object.entries(stats).sort((a, b) => b[1] - a[1]),
-      total
+      colors: sortedColors,
+      total,
+      markedTotal
     };
-  }, [grid]);
+  }, [grid, markedCells]);
 
   const cellSize = 20 * zoom;
 
   const handleCellClick = useCallback((x: number, y: number) => {
     const cellId = `${x}-${y}`;
+    
     if (isBrushMode) {
-      // Use getState() to avoid dependency on markedCells
-      const currentMarkedCells = useProjectStore.getState().markedCells;
-      const isCurrentlyMarked = !!currentMarkedCells[cellId];
-      const targetState = !isCurrentlyMarked;
-      brushTargetStateRef.current = targetState;
-      isDraggingRef.current = true;
-      setMarkCell(cellId, targetState);
+      // 刷子模式：应用目标状态
+      if (brushTargetStateRef.current !== null) {
+        setMarkCell(cellId, brushTargetStateRef.current);
+      }
     } else {
+      // 选择模式：切换标记状态
       toggleMarkCell(cellId);
     }
   }, [isBrushMode, toggleMarkCell, setMarkCell]);
 
-  const handleMouseEnter = useCallback((x: number, y: number) => {
-    setHoveredCell({ x, y });
-    if (isBrushMode && isDraggingRef.current && brushTargetStateRef.current !== null) {
+  const handleCellDragStart = useCallback((x: number, y: number) => {
+    if (isBrushMode) {
+      const cellId = `${x}-${y}`;
+      const currentMarkedCells = useProjectStore.getState().markedCells;
+      const isCurrentlyMarked = !!currentMarkedCells[cellId];
+      brushTargetStateRef.current = !isCurrentlyMarked;
+    }
+  }, [isBrushMode]);
+
+  const handleCellDrag = useCallback((x: number, y: number) => {
+    if (isBrushMode && brushTargetStateRef.current !== null) {
       const cellId = `${x}-${y}`;
       setMarkCell(cellId, brushTargetStateRef.current);
     }
   }, [isBrushMode, setMarkCell]);
 
-  const handleMouseLeave = useCallback(() => {
-    setHoveredCell(null);
+  const handleMouseEnter = useCallback((x: number, y: number) => {
+    setHoveredCell({ x, y });
   }, []);
 
-  useEffect(() => {
-    const handleMouseUp = () => {
-      isDraggingRef.current = false;
-      brushTargetStateRef.current = null;
-    };
-
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => window.removeEventListener('mouseup', handleMouseUp);
+  const handleMouseLeave = useCallback(() => {
+    setHoveredCell(null);
   }, []);
 
   const handleResetMarks = () => {
@@ -271,7 +218,10 @@ export default function Marking() {
 
 
   return (
-    <div className={clsx(styles.container, { [styles.dark]: theme === 'dark' })}>
+    <div 
+      className={clsx(styles.container, { [styles.dark]: theme === 'dark' })}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {/* Header */}
       <header className={clsx(styles.header, { [styles.dark]: theme === 'dark' })}>
         <div className={styles.headerLeft}>
@@ -284,7 +234,7 @@ export default function Marking() {
           <div>
             <h1 className="text-lg font-bold">标记: {name}</h1>
             <p className="text-xs text-zinc-500 font-mono">
-              已标记: {Object.keys(markedCells).length} / {colorStats.total}
+              已标记: {colorStats.markedTotal} / {colorStats.total}
             </p>
           </div>
         </div>
@@ -336,6 +286,18 @@ export default function Marking() {
             title="显示色号"
           >
             {showLabels ? <Eye size={20} /> : <EyeOff size={20} />}
+          </button>
+
+          {/* Faded Mode Toggle */}
+          <button
+            onClick={() => setFadedMode(!fadedMode)}
+            className={clsx(styles.buttonControl, {
+              [styles.active]: fadedMode,
+              [styles.dark]: theme === 'dark'
+            })}
+            title={fadedMode ? "关闭淡色模式" : "开启淡色模式"}
+          >
+            <CheckSquare size={20} />
           </button>
 
           {/* Grid Settings */}
@@ -425,8 +387,7 @@ export default function Marking() {
               <div 
                 className={clsx(styles.topRuler, styles.grid, { [styles.dark]: theme === 'dark' })}
                 style={{
-                  gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
-                  gap: '1px'
+                  gridTemplateColumns: `repeat(${width}, ${cellSize}px)`
                 }}
               >
                 {Array.from({ length: width }).map((_, i) => (
@@ -448,8 +409,7 @@ export default function Marking() {
               <div 
                 className={clsx(styles.leftRuler, styles.grid, { [styles.dark]: theme === 'dark' })}
                 style={{
-                  gridTemplateRows: `repeat(${height}, ${cellSize}px)`,
-                  gap: '1px'
+                  gridTemplateRows: `repeat(${height}, ${cellSize}px)`
                 }}
               >
                 {Array.from({ length: height }).map((_, i) => (
@@ -467,43 +427,30 @@ export default function Marking() {
                 ))}
               </div>
 
-              {/* Grid */}
-              <div 
-                ref={gridRef}
-                className={clsx(styles.gridCells, styles.grid, { [styles.dark]: theme === 'dark' })}
-                style={{
-                  gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
-                  width: 'fit-content'
-                }}
-                onMouseLeave={handleMouseLeave}
-              >
-                {grid.map((row, y) => (
-                  row.map((cell, x) => {
-                    const isCenter = showCenterMark && x === centerX && y === centerY;
-                    const hasVGuide = vGuides.has(x);
-                    const hasHGuide = hGuides.has(y);
-                    const isMarked = !!markedCells[cell.id];
-                    const isHidden = cell.color ? hiddenColors.has(cell.color) : false;
-
-                    return (
-                      <MarkingCell
-                        key={cell.id}
-                        cell={cell}
-                        cellSize={cellSize}
-                        isMarked={isMarked}
-                        isCenter={isCenter}
-                        hasVGuide={hasVGuide}
-                        hasHGuide={hasHGuide}
-                        showLabels={showLabels}
-                        zoom={zoom}
-                        isHovered={hoveredCell?.x === x && hoveredCell?.y === y}
-                        isHidden={isHidden}
-                        onMouseDown={handleCellClick}
-                        onMouseEnter={handleMouseEnter}
-                      />
-                    );
-                  })
-                ))}
+              {/* Grid - Canvas Renderer */}
+              <div ref={gridRef}>
+                <MarkingCanvasRenderer
+                  grid={grid}
+                  width={width}
+                  height={height}
+                  zoom={zoom}
+                  theme={theme}
+                  showLabels={showLabels}
+                  showCenterMark={showCenterMark}
+                  centerX={centerX}
+                  centerY={centerY}
+                  hGuides={hGuides}
+                  vGuides={vGuides}
+                  markedCells={markedCells}
+                  hiddenColors={hiddenColors}
+                  hoveredCell={hoveredCell}
+                  fadedMode={fadedMode}
+                  onCellClick={handleCellClick}
+                  onCellDragStart={handleCellDragStart}
+                  onCellDrag={handleCellDrag}
+                  onCellHover={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                />
               </div>
             </div>
 
@@ -515,7 +462,7 @@ export default function Marking() {
               </div>
               
               <div className={clsx(styles.statsGrid, styles.gridCols4)}>
-                {colorStats.colors.map(([color, count]) => {
+                {colorStats.colors.map(([color, stats]) => {
                   const isHidden = hiddenColors.has(color);
                   return (
                     <div 
@@ -562,7 +509,13 @@ export default function Marking() {
                       
                       <div className={styles.statContent}>
                         <span className={styles.statColorId}>{getColorId(color)}</span>
-                        <span className={styles.statCount}>{count}</span>
+                        <span className={styles.statCount}>
+                          <span className={stats.marked === stats.count ? 'text-green-600 dark:text-green-400' : ''}>
+                            {stats.marked}
+                          </span>
+                          <span className="text-zinc-400 dark:text-zinc-600"> / </span>
+                          {stats.count}
+                        </span>
                       </div>
                     </div>
                   );

@@ -2,48 +2,119 @@
 
 .canvasGrid {
   display: grid;
-  background: $color-bg-card-light;
-  border-radius: $radius-lg;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  border: 1px solid $color-border-light;
+  background-color: #ffffff;
+  gap: 1px;
+  width: fit-content;
   .dark & {
-    background: $color-bg-card-dark;
-    border-color: $color-border-dark;
+    background-color: #27272a;
   }
 }
 
-.cell {
+.gridCell {
   width: 20px;
   height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid $color-border-light;
-  font-size: 0.75rem;
+  border: 1px solid #e4e4e7;
+  background-color: #ffffff;
   cursor: pointer;
-  transition: background $duration-200;
+  transition: all 75ms ease;
+  position: relative;
+  font-size: 0.75rem;
+
   &:hover {
-    background: $color-border-hover;
+    filter: brightness(0.95);
   }
+
   .dark & {
-    border-color: $color-border-dark;
+    border-color: #3f3f46;
+    background-color: #27272a;
+
     &:hover {
-      background: $color-border-hover-dark;
+      filter: brightness(1.1);
     }
+  }
+
+  // Guide styles
+  &.vGuide {
+    border-right: 2px solid #3b82f6;
+    z-index: 10;
+
+    .dark & {
+      border-right-color: #0ea5e9;
+    }
+  }
+
+  &.hGuide {
+    border-bottom: 2px solid #3b82f6;
+    z-index: 10;
+
+    .dark & {
+      border-bottom-color: #0ea5e9;
+    }
+  }
+
+  // Symmetry axis styles
+  &.symmetryLineX {
+    border-right: 2px solid #a855f7;
+    z-index: 20;
+  }
+
+  &.symmetryLine Y {
+    border-bottom: 2px solid #a855f7;
+    z-index: 20;
+  }
+
+  &.symmetryOverlay {
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: #a855f7;
+      opacity: 0.1;
+      pointer-events: none;
+    }
+  }
+
+  &.frosted {
+    background-color: #fdfbff;
   }
 }
 
 .cellLabel {
   font-size: 0.7rem;
-  color: $color-text-secondary;
-  .dark & {
-    color: $color-text-secondary-dark;
-  }
+  font-weight: bold;
+  color: inherit;
+  pointer-events: none;
 }
 
 .centerMark {
-  background: $color-primary;
-  border-radius: 50%;
-  width: 8px;
-  height: 8px;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+
+  svg {
+    color: #d4d4d8;
+    opacity: 0.5;
+  }
+
+  .dark & svg {
+    color: #52525b;
+  }
+}
+
+.hoverCoordinates {
+  font-size: 0.5rem;
+  color: #a1a1a6;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+
+  .dark & {
+    color: #71717a;
+  }
 }

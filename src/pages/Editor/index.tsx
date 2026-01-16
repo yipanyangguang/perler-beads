@@ -18,7 +18,7 @@ import styles from "./index.module.scss";
 
 export default function Editor() {
   const navigate = useNavigate();
-  const { grid, width, height, name, setCellColor, setCellsColors, pushToUndoStack, moveGrid, addRow, deleteRow, addColumn, deleteColumn, replaceColor, undo, redo, undoStack, redoStack, backgroundImageUrl, backgroundImageOpacity, setBackgroundImage, setBackgroundImageOpacity, removeBackgroundImage } = useProjectStore();
+  const { grid, width, height, name, setCellColor, setCellsColors, pushToUndoStack, moveGrid, addRow, deleteRow, addColumn, deleteColumn, replaceColor, undo, redo, undoStack, redoStack, backgroundImageUrl, backgroundImageOpacity, setBackgroundImage, setBackgroundImageOpacity, removeBackgroundImage, flipHorizontal } = useProjectStore();
   const { theme, toggleTheme } = useTheme();
   
   const [selectedColor, setSelectedColor] = useState<string | null>("#000000");
@@ -371,13 +371,16 @@ export default function Editor() {
   }, [activeCategory]);
 
   return (
-    <div className={clsx(styles.container, { [styles.dark]: theme === 'dark' })}>
+    <div 
+      className={clsx(styles.container, { [styles.dark]: theme === 'dark' })}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {/* Header */}
       <header className={clsx(styles.header, { [styles.dark]: theme === 'dark' })}>
-        <div className="flex items-center gap-4">
+        <div className={styles.headerLeft}>
           <button 
             onClick={() => navigate("/")}
-            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+            className={clsx(styles.backButton, { [styles.dark]: theme === 'dark' })}
           >
             <ArrowLeft size={20} />
           </button>
@@ -429,6 +432,15 @@ export default function Editor() {
             )}
           </div>
 
+          {/* Flip Controls */}
+          <button
+              onClick={flipHorizontal}
+              className={clsx(styles.symmetryButton, { [styles.dark]: theme === 'dark' })}
+              title="水平镜像翻转"
+            >
+              <FlipHorizontal size={18} />
+          </button>
+
           {/* Undo/Redo */}
           <div className={clsx(styles.historyGroup, { [styles.dark]: theme === 'dark' })}>
             <button
@@ -451,7 +463,7 @@ export default function Editor() {
 
           {/* Zoom Controls */}
           <div className={clsx(styles.zoomGroup, { [styles.dark]: theme === 'dark' })}>
-            <ZoomOut size={16} className="text-zinc-500" />
+            <ZoomOut size={16} className={clsx(styles.zoomIcon, { [styles.dark]: theme === 'dark' })} />
             <input 
               type="range" 
               min="0.5" 
@@ -461,26 +473,21 @@ export default function Editor() {
               onChange={(e) => setZoom(parseFloat(e.target.value))}
               className={clsx(styles.zoomSlider, { [styles.dark]: theme === 'dark' })}
             />
-            <ZoomIn size={16} className="text-zinc-500" />
+            <ZoomIn size={16} className={clsx(styles.zoomIcon, { [styles.dark]: theme === 'dark' })} />
             <span className={styles.zoomLabel}>{Math.round(zoom * 100)}%</span>
           </div>
 
           {/* Label Toggle */}
           <button
             onClick={() => setShowLabels(!showLabels)}
-            className={clsx(
-              "p-2 rounded-lg transition-colors mr-1",
-              showLabels 
-                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" 
-                : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
-            )}
+            className={clsx(styles.toggleButton, { [styles.active]: showLabels, [styles.dark]: theme === 'dark' })}
             title="显示色号"
           >
             {showLabels ? <Eye size={20} /> : <EyeOff size={20} />}
           </button>
 
           {/* Grid Settings */}
-          <div className="relative mr-2">
+          <div className={styles.settingsWrapper}>
             <button
               ref={gridBtnRef}
               onClick={() => {
@@ -495,12 +502,7 @@ export default function Editor() {
                   setIsGridSettingsOpen(true);
                 }
               }}
-              className={clsx(
-                "p-2 rounded-lg transition-colors",
-                isGridSettingsOpen
-                  ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                  : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
-              )}
+              className={clsx(styles.toggleButton, { [styles.active]: isGridSettingsOpen, [styles.dark]: theme === 'dark' })}
               title="网格设置"
             >
               <Grid3X3 size={20} />
@@ -509,18 +511,18 @@ export default function Editor() {
             {isGridSettingsOpen && gridPopupPos && (
               <>
                 <div 
-                  className="fixed inset-0 z-40" 
+                  className={styles.backdrop}
                   onClick={() => setIsGridSettingsOpen(false)}
                 />
                 <div 
-                  className="fixed bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl z-50 w-64 p-4 animate-in fade-in zoom-in-95 duration-200"
+                  className={clsx(styles.gridPopup, { [styles.dark]: theme === 'dark' })}
                   style={{ top: gridPopupPos.top, right: gridPopupPos.right }}
                 >
-                  <h3 className="font-bold text-sm mb-3 text-zinc-900 dark:text-white">网格辅助线</h3>
+                  <h3 className={clsx(styles.gridPopupTitle, { [styles.dark]: theme === 'dark' })}>网格辅助线</h3>
                   
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <span className="text-sm text-zinc-600 dark:text-zinc-300">显示中心点 (X)</span>
+                  <div className={styles.gridPopupContent}>
+                    <label className={styles.gridPopupCheckbox}>
+                      <span className={clsx(styles.gridPopupCheckboxLabel, { [styles.dark]: theme === 'dark' })}>显示中心点 (X)</span>
                       <input 
                         type="checkbox" 
                         checked={showCenterMark}
@@ -529,11 +531,11 @@ export default function Editor() {
                       />
                     </label>
 
-                    <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-2" />
+                    <div className={clsx(styles.gridPopupDivider, { [styles.dark]: theme === 'dark' })} />
                     
                     <button 
                       onClick={addStandardGuides}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md transition-colors"
+                      className={clsx(styles.gridPopupButton, { [styles.dark]: theme === 'dark' })}
                     >
                       <Plus size={16} />
                       <span>添加 10x10 辅助线</span>
@@ -541,13 +543,13 @@ export default function Editor() {
                     
                     <button 
                       onClick={clearGuides}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                      className={clsx(styles.gridPopupButton, styles.danger, { [styles.dark]: theme === 'dark' })}
                     >
                       <Trash2 size={16} />
                       <span>清除所有辅助线</span>
                     </button>
 
-                    <p className="text-xs text-zinc-400 mt-2 px-1">
+                    <p className={clsx(styles.gridPopupHint, { [styles.dark]: theme === 'dark' })}>
                       提示：点击标尺数字可单独切换该行/列的辅助线。
                       <br />
                       右键点击标尺可增加或删除行/列。
@@ -568,12 +570,10 @@ export default function Editor() {
                 setGridPopupPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
               }
             }}
-            className={clsx(
-              "p-2 rounded-lg transition-colors",
-              isBackgroundSettingsOpen
-                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
-            )}
+            className={clsx(styles.toggleButton, {
+              [styles.active]: isBackgroundSettingsOpen,
+              [styles.dark]: theme === 'dark'
+            })}
             title="背景图设置"
           >
             <LucideImage size={20} />
@@ -582,20 +582,20 @@ export default function Editor() {
           {isBackgroundSettingsOpen && gridPopupPos && (
             <>
               <div 
-                className="fixed inset-0 z-40" 
+                className={styles.backdrop}
                 onClick={() => setIsBackgroundSettingsOpen(false)}
               />
               <div 
-                className="fixed bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl z-50 w-72 p-4 animate-in fade-in zoom-in-95 duration-200"
+                className={clsx(styles.backgroundPopup, { [styles.dark]: theme === 'dark' })}
                 style={{ top: gridPopupPos.top, right: gridPopupPos.right }}
               >
-                <h3 className="font-bold text-sm mb-3 text-zinc-900 dark:text-white">背景图设置</h3>
+                <h3 className={clsx(styles.backgroundPopupTitle, { [styles.dark]: theme === 'dark' })}>背景图设置</h3>
                 
-                <div className="space-y-3">
+                <div className={styles.backgroundPopupContent}>
                   {/* Upload Button */}
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    className={styles.uploadButton}
                   >
                     <LucideImage size={16} />
                     <span>导入背景图</span>
@@ -605,20 +605,20 @@ export default function Editor() {
                     type="file" 
                     accept="image/*"
                     onChange={handleBackgroundImageUpload}
-                    className="hidden"
+                    className={styles.hidden}
                   />
 
                   {/* Background Image Status */}
                   {backgroundImageUrl ? (
                     <>
-                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                        <p className="text-xs text-green-600 dark:text-green-400 font-medium mb-2">✓ 已导入背景图</p>
+                      <div className={clsx(styles.backgroundStatus, { [styles.dark]: theme === 'dark' })}>
+                        <p className={clsx(styles.backgroundStatusTitle, { [styles.dark]: theme === 'dark' })}>✓ 已导入背景图</p>
                         
                         {/* Opacity Slider */}
-                        <div className="space-y-2">
-                          <label className="flex items-center justify-between text-sm">
-                            <span className="text-zinc-600 dark:text-zinc-400">透明度</span>
-                            <span className="font-mono text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-700 px-2 py-1 rounded text-xs">
+                        <div className={styles.backgroundOpacityWrapper}>
+                          <label className={clsx(styles.backgroundOpacityLabel, { [styles.dark]: theme === 'dark' })}>
+                            <span>透明度</span>
+                            <span className={clsx(styles.backgroundOpacityValue, { [styles.dark]: theme === 'dark' })}>
                               {backgroundImageOpacity}%
                             </span>
                           </label>
@@ -628,9 +628,9 @@ export default function Editor() {
                             max="100"
                             value={backgroundImageOpacity}
                             onChange={(e) => handleBackgroundOpacityChange(parseInt(e.target.value))}
-                            className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            className={clsx(styles.backgroundOpacitySlider, { [styles.dark]: theme === 'dark' })}
                           />
-                          <div className="flex text-xs text-zinc-500 dark:text-zinc-400 justify-between">
+                          <div className={clsx(styles.backgroundOpacityHints, { [styles.dark]: theme === 'dark' })}>
                             <span>0% (隐藏)</span>
                             <span>100% (可见)</span>
                           </div>
@@ -639,7 +639,7 @@ export default function Editor() {
                         {/* Remove Button */}
                         <button 
                           onClick={handleRemoveBackgroundImage}
-                          className="w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 text-sm bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors border border-red-200 dark:border-red-800"
+                          className={clsx(styles.removeBackgroundButton, { [styles.dark]: theme === 'dark' })}
                         >
                           <Trash2 size={14} />
                           <span>删除背景图</span>
@@ -647,15 +647,15 @@ export default function Editor() {
                       </div>
                     </>
                   ) : (
-                    <div className="bg-zinc-50 dark:bg-zinc-700/50 border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg p-3">
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
+                    <div className={clsx(styles.backgroundPlaceholder, { [styles.dark]: theme === 'dark' })}>
+                      <p className={clsx(styles.backgroundPlaceholderText, { [styles.dark]: theme === 'dark' })}>
                         未导入背景图<br />
                         点击上方按钮选择图片
                       </p>
                     </div>
                   )}
 
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-2 px-1">
+                  <p className={clsx(styles.backgroundPopupHint, { [styles.dark]: theme === 'dark' })}>
                     💡 背景图将以 100% 宽高适配编辑板块，调整透明度后可以看到背景图内容。
                   </p>
                 </div>
@@ -664,49 +664,49 @@ export default function Editor() {
           )}
 
           {/* Move Grid Controls */}
-          <div className="flex items-center gap-1 mr-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
-            <button onClick={() => moveGrid('left')} className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded" title="向左移动"><ArrowLeft size={14} /></button>
-            <div className="flex flex-col">
-              <button onClick={() => moveGrid('up')} className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded" title="向上移动"><ArrowUp size={14} /></button>
-              <button onClick={() => moveGrid('down')} className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded" title="向下移动"><ArrowDown size={14} /></button>
+          <div className={clsx(styles.moveGridContainer, { [styles.dark]: theme === 'dark' })}>
+            <button onClick={() => moveGrid('left')} className={clsx(styles.moveGridButton, { [styles.dark]: theme === 'dark' })} title="向左移动"><ArrowLeft size={14} /></button>
+            <div className={styles.moveGridVertical}>
+              <button onClick={() => moveGrid('up')} className={clsx(styles.moveGridButton, { [styles.dark]: theme === 'dark' })} title="向上移动"><ArrowUp size={14} /></button>
+              <button onClick={() => moveGrid('down')} className={clsx(styles.moveGridButton, { [styles.dark]: theme === 'dark' })} title="向下移动"><ArrowDown size={14} /></button>
             </div>
-            <button onClick={() => moveGrid('right')} className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded" title="向右移动"><ArrowRight size={14} /></button>
+            <button onClick={() => moveGrid('right')} className={clsx(styles.moveGridButton, { [styles.dark]: theme === 'dark' })} title="向右移动"><ArrowRight size={14} /></button>
           </div>
 
-          <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 mr-4">
+          <div className={clsx(styles.toolGroup, { [styles.dark]: theme === 'dark' })}>
             <button 
               onClick={() => setTool("select")}
-              className={clsx(
-                "p-2 rounded-md transition-colors",
-                tool === "select" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-              )}
+              className={clsx(styles.toolButton, {
+                [styles.active]: tool === "select",
+                [styles.dark]: theme === 'dark'
+              })}
               title="点选模式"
             >
               <MousePointer2 size={18} />
             </button>
             <button 
               onClick={() => setTool("brush")}
-              className={clsx(
-                "p-2 rounded-md transition-colors",
-                tool === "brush" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-              )}
+              className={clsx(styles.toolButton, {
+                [styles.active]: tool === "brush",
+                [styles.dark]: theme === 'dark'
+              })}
               title="笔刷模式"
             >
               <Paintbrush size={18} />
             </button>
             <button 
               onClick={() => setTool("eraser")}
-              className={clsx(
-                "p-2 rounded-md transition-colors",
-                tool === "eraser" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-              )}
+              className={clsx(styles.toolButton, {
+                [styles.active]: tool === "eraser",
+                [styles.dark]: theme === 'dark'
+              })}
               title="橡皮擦"
             >
               <Eraser size={18} />
             </button>
           </div>
 
-          <div className="relative">
+          <div className={styles.colorPickerWrapper}>
             <button 
               ref={colorBtnRef}
               onClick={() => {
@@ -721,13 +721,13 @@ export default function Editor() {
                   setIsColorPickerOpen(true);
                 }
               }}
-              className="flex items-center gap-2 px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className={clsx(styles.colorButton, { [styles.dark]: theme === 'dark' })}
             >
               <div 
-                className={clsx(
-                  "w-6 h-6 rounded-full border border-zinc-300 dark:border-zinc-600 flex items-center justify-center text-[10px] font-bold overflow-hidden",
-                  selectedColor === '#FDFBFF' && "frosted-bead"
-                )}
+                className={clsx(styles.colorPreview, {
+                  'frosted-bead': selectedColor === '#FDFBFF',
+                  [styles.dark]: theme === 'dark'
+                })}
                 style={{ 
                   backgroundColor: selectedColor === '#FDFBFF' ? undefined : (selectedColor || 'transparent'),
                   color: selectedColor ? getContrastColor(selectedColor) : undefined
@@ -735,31 +735,29 @@ export default function Editor() {
               >
                 {selectedColor && getColorId(selectedColor)}
               </div>
-              <ChevronDown size={16} className="text-zinc-500" />
+              <ChevronDown size={16} className={clsx(styles.colorButtonIcon, { [styles.dark]: theme === 'dark' })} />
             </button>
             
             {isColorPickerOpen && colorPopupPos && (
               <>
                 <div 
-                  className="fixed inset-0 z-40" 
+                  className={styles.backdrop}
                   onClick={() => setIsColorPickerOpen(false)}
                 />
                 <div 
-                  className="fixed bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl z-50 w-96 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                  className={clsx(styles.colorPickerPopup, { [styles.dark]: theme === 'dark' })}
                   style={{ top: colorPopupPos.top, right: colorPopupPos.right }}
                 >
                   {/* Category Tabs */}
-                  <div className="flex overflow-x-auto border-b border-zinc-200 dark:border-zinc-700 p-1 gap-1 bg-zinc-50 dark:bg-zinc-900/50">
+                  <div className={clsx(styles.categoryTabs, { [styles.dark]: theme === 'dark' })}>
                     {Object.keys(colorData).map(category => (
                       <button
                         key={category}
                         onClick={() => setActiveCategory(category)}
-                        className={clsx(
-                          "px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap",
-                          activeCategory === category 
-                            ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm" 
-                            : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300"
-                        )}
+                        className={clsx(styles.categoryTab, {
+                          [styles.active]: activeCategory === category,
+                          [styles.dark]: theme === 'dark'
+                        })}
                       >
                         {category}
                       </button>
@@ -767,14 +765,14 @@ export default function Editor() {
                   </div>
                   
                   {/* Color Grid */}
-                  <div className="p-3 grid grid-cols-8 gap-2 max-h-80 overflow-y-auto">
+                  <div className={styles.colorGrid}>
                     {Object.entries(currentCategoryColors).map(([id, color]) => (
                       <button
                         key={id}
-                        className={clsx(
-                          "group relative w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-600 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-800 flex items-center justify-center",
-                          color === '#FDFBFF' && "frosted-bead"
-                        )}
+                        className={clsx(styles.colorGridButton, {
+                          'frosted-bead': color === '#FDFBFF',
+                          [styles.dark]: theme === 'dark'
+                        })}
                         style={{ backgroundColor: color === '#FDFBFF' ? undefined : color }}
                         onClick={() => {
                           setSelectedColor(color);
@@ -783,7 +781,7 @@ export default function Editor() {
                         }}
                       >
                         <span 
-                          className="text-[8px] font-bold"
+                          className={styles.colorGridButtonLabel}
                           style={{ color: getContrastColor(color) }}
                         >
                           {id}
@@ -796,16 +794,15 @@ export default function Editor() {
             )}
           </div>
 
-          <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800 mx-2" />
+          <div className={clsx(styles.divider, { [styles.dark]: theme === 'dark' })} />
 
           <button 
             onClick={togglePreview}
-            className={clsx(
-              "p-2 rounded-lg transition-colors",
-              isPreviewMode 
-                ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
-                : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-            )}
+            className={clsx(styles.actionButton, {
+              [styles.active]: isPreviewMode,
+              [styles.preview]: isPreviewMode,
+              [styles.dark]: theme === 'dark'
+            })}
             title="风格化预览"
           >
             <Wand2 size={20} />
@@ -814,34 +811,30 @@ export default function Editor() {
           <button 
             onClick={handleSave} 
             disabled={isSaving}
-            className={clsx(
-              "p-2 rounded-lg transition-colors",
-              isSaving 
-                ? "text-zinc-300 dark:text-zinc-600 cursor-not-allowed" 
-                : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-            )}
+            className={clsx(styles.actionButton, {
+              [styles.disabled]: isSaving,
+              [styles.dark]: theme === 'dark'
+            })}
             title="保存 JSON"
           >
-            {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+            {isSaving ? <Loader2 size={20} className={styles.spinIcon} /> : <Save size={20} />}
           </button>
           
           <button 
             onClick={() => setIsExportSettingsOpen(true)}
             disabled={isExporting}
-            className={clsx(
-              "p-2 rounded-lg transition-colors",
-              isExporting 
-                ? "text-zinc-300 dark:text-zinc-600 cursor-not-allowed" 
-                : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-            )}
+            className={clsx(styles.actionButton, {
+              [styles.disabled]: isExporting,
+              [styles.dark]: theme === 'dark'
+            })}
             title="导出图片"
           >
-            {isExporting ? <Loader2 size={20} className="animate-spin" /> : <LucideImage size={20} />}
+            {isExporting ? <Loader2 size={20} className={styles.spinIcon} /> : <LucideImage size={20} />}
           </button>
 
           <button 
             onClick={() => navigate("/marking")}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className={clsx(styles.markingButton, { [styles.dark]: theme === 'dark' })}
           >
             标记模式
           </button>
@@ -849,36 +842,40 @@ export default function Editor() {
       </header>
 
       {/* Main Editor Area */}
-      <main className="flex-1 overflow-hidden bg-zinc-100 dark:bg-zinc-950 transition-colors duration-300 perspective-[2000px]">
+      <main className={clsx(styles.main, { [styles.dark]: theme === 'dark' })}>
         <div 
           id="flipper"
-          className="w-full h-full relative preserve-3d"
-          style={{ transformStyle: 'preserve-3d' }}
+          className={clsx(styles.flipper, { [styles.active]: isPreviewMode })}
+          style={{ 
+            transformStyle: 'preserve-3d',
+            transform: isPreviewMode ? 'rotateY(180deg)' : 'rotateY(0deg)',
+            transition: 'transform 600ms cubic-bezier(0.4, 0, 0.2, 1)'
+          }}
         >
           {/* Front Face: Editor */}
           <div 
-            className={clsx(
-              "absolute inset-0 backface-hidden bg-zinc-100 dark:bg-zinc-950",
-              !isPreviewMode ? "z-10" : "z-0 pointer-events-none"
-            )}
+            className={clsx(styles.frontFace, {
+              [styles.active]: !isPreviewMode,
+              [styles.dark]: theme === 'dark'
+            })}
             style={{ backfaceVisibility: 'hidden' }}
           >
-            <div className="w-full h-full overflow-auto">
-              <div className="min-w-full min-h-full flex flex-col items-center p-12">
+            <div className={styles.editorScrollContainer}>
+              <div className={styles.editorInnerContainer}>
                 {/* Export Container: Includes Grid, Rulers, and Stats */}
-                <div id="export-container" className="bg-white dark:bg-zinc-900 p-8 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 transition-colors duration-300 flex flex-col gap-8 mb-12">
+                <div id="export-container" className={clsx(styles.exportContainer, { [styles.dark]: theme === 'dark' })}>
             
             {/* Grid Area */}
-            <div className="grid" style={{ 
+            <div className={styles.gridArea} style={{ 
               gridTemplateColumns: `32px 1fr`, 
               gridTemplateRows: `32px 1fr` 
             }}>
               {/* Corner (Empty) */}
-              <div className="border-b border-r border-zinc-200 dark:border-zinc-800"></div>
+              <div className={clsx(styles.rulerCorner, { [styles.dark]: theme === 'dark' })}></div>
 
               {/* Top Ruler */}
               <div 
-                className="grid border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-x-auto"
+                className={clsx(styles.topRuler, { [styles.dark]: theme === 'dark' })}
                 style={{
                   gridTemplateColumns: `repeat(${width}, ${cellSize}px)`,
                   gap: '0',
@@ -894,12 +891,10 @@ export default function Editor() {
                       e.stopPropagation();
                       setContextMenu({ type: 'col', index: i, x: e.clientX, y: e.clientY });
                     }}
-                    className={clsx(
-                      "flex items-end justify-center text-[10px] pb-1 cursor-pointer hover:brightness-95 dark:hover:brightness-110 transition-colors select-none border-r border-zinc-100 dark:border-zinc-900",
-                      vGuides.has(i) 
-                        ? "text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/20" 
-                        : "text-zinc-400 dark:text-zinc-500 bg-white dark:bg-zinc-950"
-                    )}
+                    className={clsx(styles.rulerCell, {
+                      [styles.active]: vGuides.has(i),
+                      [styles.dark]: theme === 'dark'
+                    })}
                     style={{ height: '32px', minWidth: `${cellSize}px`, width: `${cellSize}px` }}
                   >
                     {i + 1}
@@ -909,7 +904,7 @@ export default function Editor() {
 
               {/* Left Ruler */}
               <div 
-                className="grid border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-y-auto"
+                className={clsx(styles.leftRuler, { [styles.dark]: theme === 'dark' })}
                 style={{
                   gridTemplateRows: `repeat(${height}, ${cellSize}px)`,
                   gap: '0',
@@ -925,12 +920,10 @@ export default function Editor() {
                       e.stopPropagation();
                       setContextMenu({ type: 'row', index: i, x: e.clientX, y: e.clientY });
                     }}
-                    className={clsx(
-                      "flex items-center justify-end text-[10px] pr-1 cursor-pointer hover:brightness-95 dark:hover:brightness-110 transition-colors select-none border-b border-zinc-100 dark:border-zinc-900",
-                      hGuides.has(i) 
-                        ? "text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/20" 
-                        : "text-zinc-400 dark:text-zinc-500 bg-white dark:bg-zinc-950"
-                    )}
+                    className={clsx(styles.rulerCell, styles.rulerCellLeft, {
+                      [styles.active]: hGuides.has(i),
+                      [styles.dark]: theme === 'dark'
+                    })}
                     style={{ width: '32px', minHeight: `${cellSize}px`, height: `${cellSize}px` }}
                   >
                     {i + 1}
@@ -940,7 +933,7 @@ export default function Editor() {
 
               {/* Grid */}
               <div 
-                className="bg-white dark:bg-zinc-950"
+                className={clsx(styles.canvasContainer, { [styles.dark]: theme === 'dark' })}
                 style={{
                   width: 'fit-content',
                   height: 'fit-content'
@@ -975,78 +968,74 @@ export default function Editor() {
             </div>
 
             {/* Bottom Stats Area */}
-            <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <h3 className="font-bold text-sm text-zinc-900 dark:text-white">颜色统计清单</h3>
-                  <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5">
+            <div className={clsx(styles.statsSection, { [styles.dark]: theme === 'dark' })}>
+              <div className={styles.statsHeader}>
+                <div className={styles.statsHeaderLeft}>
+                  <h3 className={clsx(styles.statsTitle, { [styles.dark]: theme === 'dark' })}>颜色统计清单</h3>
+                  <div className={clsx(styles.layoutToggle, { [styles.dark]: theme === 'dark' })}>
                     <button
                       onClick={() => setIsTextLayout(false)}
-                      className={clsx(
-                        "p-1.5 rounded-md transition-colors",
-                        !isTextLayout 
-                          ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm" 
-                          : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-                      )}
+                      className={clsx(styles.layoutToggleButton, {
+                        [styles.active]: !isTextLayout,
+                        [styles.dark]: theme === 'dark'
+                      })}
                       title="网格视图"
                     >
                       <LayoutGrid size={14} />
                     </button>
                     <button
                       onClick={() => setIsTextLayout(true)}
-                      className={clsx(
-                        "p-1.5 rounded-md transition-colors",
-                        isTextLayout 
-                          ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm" 
-                          : "text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-                      )}
+                      className={clsx(styles.layoutToggleButton, {
+                        [styles.active]: isTextLayout,
+                        [styles.dark]: theme === 'dark'
+                      })}
                       title="文本视图"
                     >
                       <List size={14} />
                     </button>
                   </div>
                 </div>
-                <span className="text-xs text-zinc-500">总计: {colorStats.total} 颗</span>
+                <span className={clsx(styles.statsTotal, { [styles.dark]: theme === 'dark' })}>总计: {colorStats.total} 颗</span>
               </div>
               
               {isTextLayout ? (
-                <div className="grid grid-cols-4 gap-x-8 gap-y-2 text-sm font-mono text-zinc-700 dark:text-zinc-300">
+                <div className={clsx(styles.statsTextView, { [styles.dark]: theme === 'dark' })}>
                   {colorStats.colors.map(([color, count]) => (
-                    <div key={color} className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-1">
-                      <span className="font-bold">{getColorId(color)}</span>
+                    <div key={color} className={clsx(styles.statsTextItem, { [styles.dark]: theme === 'dark' })}>
+                      <span className={styles.statsTextItemId}>{getColorId(color)}</span>
                       <span>{count}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-4 gap-4 export-stats-grid">
+                <div className={styles.statsGridView}>
                   {colorStats.colors.map(([color, count]) => (
                     <div 
                       key={color} 
                       onClick={() => setSelectedColor(color)}
-                      className="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
+                      className={clsx(styles.statsCard, { [styles.dark]: theme === 'dark' })}
                     >
                       <div 
-                        className={clsx(
-                          "w-6 h-6 rounded-full border border-zinc-200 dark:border-zinc-600 shadow-sm flex items-center justify-center flex-shrink-0",
-                          color === '#FDFBFF' && "frosted-bead"
-                        )}
+                        className={clsx(styles.statsCardColor, {
+                          'frosted-bead': color === '#FDFBFF',
+                          [styles.dark]: theme === 'dark'
+                        })}
                         style={{ backgroundColor: color === '#FDFBFF' ? undefined : color }}
                       >
                         <span 
-                          className="text-[8px] font-bold"
+                          className={styles.statsCardColorLabel}
                           style={{ color: getContrastColor(color) }}
                         >
                           {getColorId(color)}
                         </span>
                       </div>
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-xs font-bold whitespace-nowrap">{getColorId(color)}</span>
-                          <span className="text-xs font-mono text-zinc-500">{count}</span>
+                      <div className={styles.statsCardInfo}>
+                        <div className={styles.statsCardInfoRow}>
+                          <span className={styles.statsCardId}>{getColorId(color)}</span>
+                          <span className={clsx(styles.statsCardCount, { [styles.dark]: theme === 'dark' })}>{count}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className={styles.statsCardActions}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1055,10 +1044,10 @@ export default function Editor() {
                               newColor: selectedColor
                             });
                           }}
-                          className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-all"
+                          className={clsx(styles.statsCardActionButton, { [styles.dark]: theme === 'dark' })}
                           title="替换颜色"
                         >
-                          <MoreHorizontal size={14} className="text-zinc-500" />
+                          <MoreHorizontal size={14} className={clsx(styles.statsCardActionIcon, { [styles.dark]: theme === 'dark' })} />
                         </button>
                       </div>
                     </div>
@@ -1067,12 +1056,12 @@ export default function Editor() {
               )}
               
               {colorStats.colors.length === 0 && (
-                <div className="text-center py-4 text-xs text-zinc-400">
+                <div className={clsx(styles.statsEmpty, { [styles.dark]: theme === 'dark' })}>
                   暂无颜色数据
                 </div>
               )}
 
-              <div className="mt-6 flex items-center justify-center gap-2 text-xs text-zinc-400">
+              <div className={clsx(styles.statsFooter, { [styles.dark]: theme === 'dark' })}>
                 <img src={iconSvg} width="44" />
                 <span>perler-beads</span>
               </div>
@@ -1083,26 +1072,26 @@ export default function Editor() {
     </div>
       {/* Back Face: Preview */}
       <div 
-        className={clsx(
-          "absolute inset-0 backface-hidden bg-zinc-200 dark:bg-zinc-900",
-          isPreviewMode ? "z-10" : "z-0 pointer-events-none"
-        )}
+        className={clsx(styles.backFace, {
+          [styles.active]: isPreviewMode,
+          [styles.dark]: theme === 'dark'
+        })}
         style={{ 
           backfaceVisibility: 'hidden', 
           transform: 'rotateY(180deg)' 
         }}
       >
-            <div className="w-full h-full overflow-auto flex items-center justify-center p-12">
-              <div className="relative p-12 bg-white shadow-2xl rounded-lg overflow-hidden max-w-[90vw] max-h-[90vh] overflow-auto">
+            <div className={styles.previewContainer}>
+              <div className={styles.previewCard}>
                 {/* Texture Overlay */}
-                <div className="absolute inset-0 pointer-events-none opacity-20 mix-blend-multiply z-20" 
+                <div className={styles.previewTextureOverlay} 
                       style={{ 
                         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
                         filter: 'contrast(120%) brightness(100%)'
                       }}></div>
                 
-                {/* Preview Canvas Grid */}
-                <div className="relative z-10">
+                {/* Preview Canvas Grid - 纯色块预览 */}
+                <div className={styles.previewCanvasWrapper}>
                   <CanvasGridRenderer 
                     width={width}
                     height={height}
@@ -1117,8 +1106,9 @@ export default function Editor() {
                     symmetryAxis="x"
                     tool="select"
                     hoveredCell={null}
-                    backgroundImageUrl={backgroundImageUrl}
-                    backgroundImageOpacity={backgroundImageOpacity}
+                    backgroundImageUrl={undefined}
+                    backgroundImageOpacity={100}
+                    previewMode={true}
                     onCellClick={() => {}}
                     onCellHover={() => {}}
                     onMouseLeave={() => {}}
@@ -1132,7 +1122,7 @@ export default function Editor() {
 
       {contextMenu && (
         <div 
-          className="fixed z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 min-w-[120px] animate-in fade-in zoom-in-95 duration-100"
+          className={clsx(styles.contextMenu, { [styles.dark]: theme === 'dark' })}
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1140,20 +1130,20 @@ export default function Editor() {
             <>
               <button 
                 onClick={() => { addColumn(contextMenu.index); setContextMenu(null); }}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200"
+                className={clsx(styles.contextMenuItem, { [styles.dark]: theme === 'dark' })}
               >
                 在左侧插入列
               </button>
               <button 
                 onClick={() => { addColumn(contextMenu.index + 1); setContextMenu(null); }}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200"
+                className={clsx(styles.contextMenuItem, { [styles.dark]: theme === 'dark' })}
               >
                 在右侧插入列
               </button>
-              <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+              <div className={clsx(styles.contextMenuDivider, { [styles.dark]: theme === 'dark' })} />
               <button 
                 onClick={() => { deleteColumn(contextMenu.index); setContextMenu(null); }}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600"
+                className={clsx(styles.contextMenuItem, styles.danger, { [styles.dark]: theme === 'dark' })}
               >
                 删除此列
               </button>
@@ -1162,20 +1152,20 @@ export default function Editor() {
             <>
               <button 
                 onClick={() => { addRow(contextMenu.index); setContextMenu(null); }}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200"
+                className={clsx(styles.contextMenuItem, { [styles.dark]: theme === 'dark' })}
               >
                 在上方插入行
               </button>
               <button 
                 onClick={() => { addRow(contextMenu.index + 1); setContextMenu(null); }}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200"
+                className={clsx(styles.contextMenuItem, { [styles.dark]: theme === 'dark' })}
               >
                 在下方插入行
               </button>
-              <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+              <div className={clsx(styles.contextMenuDivider, { [styles.dark]: theme === 'dark' })} />
               <button 
                 onClick={() => { deleteRow(contextMenu.index); setContextMenu(null); }}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600"
+                className={clsx(styles.contextMenuItem, styles.danger, { [styles.dark]: theme === 'dark' })}
               >
                 删除此行
               </button>
@@ -1185,32 +1175,32 @@ export default function Editor() {
       )}
 
       {isExporting && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center text-white animate-in fade-in duration-200">
-          <div className="w-64 space-y-4">
-            <div className="flex items-center justify-between text-sm font-medium">
+        <div className={styles.exportProgressOverlay}>
+          <div className={styles.exportProgressContainer}>
+            <div className={styles.exportProgressHeader}>
               <span>正在导出图片...</span>
               <span>{Math.round(exportProgress)}%</span>
             </div>
-            <div className="h-2 bg-zinc-700 rounded-full overflow-hidden">
+            <div className={styles.exportProgressBarWrapper}>
               <div 
-                className="h-full bg-blue-500 transition-all duration-200 ease-out"
+                className={styles.exportProgressBar}
                 style={{ width: `${exportProgress}%` }}
               />
             </div>
-            <p className="text-xs text-zinc-400 text-center">正在生成高清网格与统计数据</p>
+            <p className={styles.exportProgressHint}>正在生成高清网格与统计数据</p>
           </div>
         </div>
       )}
 
       {isExportSettingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 border border-zinc-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-white">导出图片设置</h3>
+        <div className={styles.modalOverlay}>
+          <div className={clsx(styles.modal, { [styles.dark]: theme === 'dark' })}>
+            <h3 className={clsx(styles.modalTitle, { [styles.dark]: theme === 'dark' })}>导出图片设置</h3>
             
-            <div className="mb-6">
-              <div className="flex justify-between mb-2">
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">清晰度 (缩放倍数)</span>
-                <span className="text-sm font-bold text-zinc-900 dark:text-white">{exportScale}x</span>
+            <div className={styles.modalContent}>
+              <div className={styles.scaleControlHeader}>
+                <span className={clsx(styles.scaleControlLabel, { [styles.dark]: theme === 'dark' })}>清晰度 (缩放倍数)</span>
+                <span className={clsx(styles.scaleControlValue, { [styles.dark]: theme === 'dark' })}>{exportScale}x</span>
               </div>
               <input 
                 type="range" 
@@ -1219,17 +1209,17 @@ export default function Editor() {
                 step="1" 
                 value={exportScale} 
                 onChange={(e) => setExportScale(Number(e.target.value))}
-                className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                className={clsx(styles.scaleControlSlider, { [styles.dark]: theme === 'dark' })}
               />
-              <p className="text-xs text-zinc-400 mt-2">
+              <p className={clsx(styles.scaleControlHint, { [styles.dark]: theme === 'dark' })}>
                 倍数越高，图片越清晰，但文件体积也越大。建议 3x-5x。
               </p>
             </div>
 
-            <div className="flex justify-end gap-3">
+            <div className={styles.modalActions}>
               <button
                 onClick={() => setIsExportSettingsOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+                className={clsx(styles.modalButton, styles.cancel, { [styles.dark]: theme === 'dark' })}
               >
                 取消
               </button>
@@ -1238,7 +1228,7 @@ export default function Editor() {
                   setIsExportSettingsOpen(false);
                   handleExportImage();
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                className={clsx(styles.modalButton, styles.primary)}
               >
                 确定导出
               </button>
@@ -1248,16 +1238,16 @@ export default function Editor() {
       )}
 
       {confirmReplace && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 border border-zinc-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold mb-4">确认替换颜色</h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6">
-              确定要将所有 <span className="font-bold inline-block px-1 rounded border border-zinc-200 dark:border-zinc-700" style={{ backgroundColor: confirmReplace.oldColor === '#FDFBFF' ? undefined : confirmReplace.oldColor, color: getContrastColor(confirmReplace.oldColor) }}>{getColorId(confirmReplace.oldColor)}</span> 颜色的珠子替换为 <span className="font-bold inline-block px-1 rounded border border-zinc-200 dark:border-zinc-700" style={{ backgroundColor: confirmReplace.newColor && confirmReplace.newColor !== '#FDFBFF' ? confirmReplace.newColor : undefined, color: confirmReplace.newColor ? getContrastColor(confirmReplace.newColor) : 'inherit' }}>{confirmReplace.newColor ? getColorId(confirmReplace.newColor) : '透明/橡皮擦'}</span> 吗？
+        <div className={styles.modalOverlay}>
+          <div className={clsx(styles.modal, { [styles.dark]: theme === 'dark' })}>
+            <h3 className={clsx(styles.modalTitle, { [styles.dark]: theme === 'dark' })}>确认替换颜色</h3>
+            <p className={clsx(styles.modalText, { [styles.dark]: theme === 'dark' })}>
+              确定要将所有 <span className={clsx(styles.colorBadge, { [styles.dark]: theme === 'dark' })} style={{ backgroundColor: confirmReplace.oldColor === '#FDFBFF' ? undefined : confirmReplace.oldColor, color: getContrastColor(confirmReplace.oldColor) }}>{getColorId(confirmReplace.oldColor)}</span> 颜色的珠子替换为 <span className={clsx(styles.colorBadge, { [styles.dark]: theme === 'dark' })} style={{ backgroundColor: confirmReplace.newColor && confirmReplace.newColor !== '#FDFBFF' ? confirmReplace.newColor : undefined, color: confirmReplace.newColor ? getContrastColor(confirmReplace.newColor) : 'inherit' }}>{confirmReplace.newColor ? getColorId(confirmReplace.newColor) : '透明/橡皮擦'}</span> 吗？
             </p>
-            <div className="flex justify-end gap-3">
+            <div className={styles.modalActions}>
               <button
                 onClick={() => setConfirmReplace(null)}
-                className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+                className={clsx(styles.modalButton, styles.cancel, { [styles.dark]: theme === 'dark' })}
               >
                 取消
               </button>
@@ -1266,7 +1256,7 @@ export default function Editor() {
                   replaceColor(confirmReplace.oldColor, confirmReplace.newColor);
                   setConfirmReplace(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                className={clsx(styles.modalButton, styles.primary)}
               >
                 确定替换
               </button>

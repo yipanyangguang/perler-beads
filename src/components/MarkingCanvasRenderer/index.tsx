@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { CellData } from '@/store/useProjectStore';
+import { getColorId, getContrastColor } from '@/utils/colorUtils';
 
 interface MarkingCanvasRendererProps {
   grid: CellData[][];
@@ -16,7 +17,10 @@ interface MarkingCanvasRendererProps {
   markedCells: Record<string, boolean>;
   hiddenColors: Set<string>;
   hoveredCell: { x: number; y: number } | null;
+  fadedMode?: boolean;
   onCellClick: (x: number, y: number) => void;
+  onCellDragStart?: (x: number, y: number) => void;
+  onCellDrag?: (x: number, y: number) => void;
   onCellHover: (x: number, y: number) => void;
   onMouseLeave: () => void;
 }
@@ -27,6 +31,7 @@ export const MarkingCanvasRenderer = memo(function MarkingCanvasRenderer({
   height,
   zoom,
   theme,
+  showLabels,
   showCenterMark,
   centerX,
   centerY,
@@ -35,7 +40,10 @@ export const MarkingCanvasRenderer = memo(function MarkingCanvasRenderer({
   markedCells,
   hiddenColors,
   hoveredCell,
+  fadedMode = false,
   onCellClick,
+  onCellDragStart,
+  onCellDrag,
   onCellHover,
   onMouseLeave,
 }: MarkingCanvasRendererProps) {
@@ -121,14 +129,30 @@ export const MarkingCanvasRenderer = memo(function MarkingCanvasRenderer({
               ctx.stroke();
             }
           }
+
+          // 绘制色号
+          if (showLabels && zoom >= 0.8) {
+            const colorId = getColorId(cell.color);
+            if (colorId) {
+              ctx.font = `${Math.floor(cellSize * 0.35)}px monospace`;
+              ctx.fillStyle = getContrastColor(cell.color);
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(colorId, canvasX + cellSize / 2, canvasY + cellSize / 2);
+            }
+          }
         }
       });
     });
 
     // 绘制标记覆盖层
     if (Object.keys(markedCells).length > 0) {
-      const markColor = theme === 'dark' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)';
-      const checkColor = theme === 'dark' ? 'rgba(34, 197, 94, 0.8)' : 'rgba(34, 197, 94, 0.8)';
+      const markColor = fadedMode 
+        ? 'rgba(255, 255, 255, 0.6)' 
+        : (theme === 'dark' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.15)');
+      const checkColor = fadedMode
+        ? (theme === 'dark' ? 'rgba(34, 197, 94, 0.5)' : 'rgba(34, 197, 94, 0.6)')
+        : (theme === 'dark' ? 'rgba(34, 197, 94, 0.8)' : 'rgba(34, 197, 94, 0.8)');
 
       ctx.fillStyle = markColor;
 
@@ -140,8 +164,9 @@ export const MarkingCanvasRenderer = memo(function MarkingCanvasRenderer({
 
           ctx.fillRect(canvasX, canvasY, cellSize, cellSize);
 
+          // 绘制对勾（淡色模式下也显示，只是颜色更淡）
           ctx.strokeStyle = checkColor;
-          ctx.lineWidth = 2.5;
+          ctx.lineWidth = fadedMode ? 1.5 : 2;
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';
           ctx.beginPath();
@@ -202,7 +227,7 @@ export const MarkingCanvasRenderer = memo(function MarkingCanvasRenderer({
       const canvasY = hoveredCell.y * cellSize;
       ctx.fillRect(canvasX, canvasY, cellSize, cellSize);
     }
-  }, [grid, theme, cellSize, canvasWidth, canvasHeight, width, height, hiddenColors, markedCells, hGuides, vGuides, showCenterMark, centerX, centerY, hoveredCell]);
+  }, [grid, theme, cellSize, canvasWidth, canvasHeight, width, height, hiddenColors, markedCells, hGuides, vGuides, showCenterMark, centerX, centerY, hoveredCell, showLabels, zoom, fadedMode]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -218,9 +243,15 @@ export const MarkingCanvasRenderer = memo(function MarkingCanvasRenderer({
     if (x >= 0 && x < width && y >= 0 && y < height) {
       setIsDragging(true);
       dragStartRef.current = { x, y };
+      
+      // 调用拖动开始回调（用于刷子模式确定目标状态）
+      if (onCellDragStart) {
+        onCellDragStart(x, y);
+      }
+      
       onCellClick(x, y);
     }
-  }, [width, height, cellSize, onCellClick]);
+  }, [width, height, cellSize, onCellClick, onCellDragStart]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -237,10 +268,15 @@ export const MarkingCanvasRenderer = memo(function MarkingCanvasRenderer({
       onCellHover(x, y);
 
       if (isDragging && dragStartRef.current) {
-        onCellClick(x, y);
+        // 调用拖动回调（用于刷子模式）
+        if (onCellDrag) {
+          onCellDrag(x, y);
+        } else {
+          onCellClick(x, y);
+        }
       }
     }
-  }, [width, height, cellSize, isDragging, onCellClick, onCellHover]);
+  }, [width, height, cellSize, isDragging, onCellClick, onCellDrag, onCellHover]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
